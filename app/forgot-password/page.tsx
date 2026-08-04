@@ -16,16 +16,23 @@ export default function ForgotPasswordPage() {
     setLoading(true)
     setMessage('SENDING RESET LINK...')
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://comm-site.vercel.app/update-password',
-    })
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://comm-site.vercel.app/update-password',
+      })
 
-    setLoading(false)
+      setLoading(false)
 
-    if (error) {
-      setMessage(`ERROR: ${error.message}`)
-    } else {
-      setMessage('SUCCESS! CHECK YOUR EMAIL FOR THE PASSWORD RESET LINK.')
+      if (error) {
+        // Extract the explicit string message from the Supabase error object
+        const errText = error.message || (error as any).error_description || 'Unable to send reset email.'
+        setMessage(`ERROR: ${errText}`)
+      } else {
+        setMessage('SUCCESS! CHECK YOUR EMAIL FOR THE PASSWORD RESET LINK.')
+      }
+    } catch (err: any) {
+      setLoading(false)
+      setMessage(`ERROR: ${err?.message || 'An unexpected error occurred.'}`)
     }
   }
 
