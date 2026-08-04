@@ -1,82 +1,67 @@
 'use client'
 
-import React, { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from './supabaseClient'
 
-export default function Home() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [message, setMessage] = useState('')
-
+export default function ModList() {
+  const [mods, setMods] = useState<any[]>([])
+  const [user, setUser] = useState<any>(null)
   const supabase = createClient()
 
-  async function handleSignUp(e: React.FormEvent) {
-    e.preventDefault()
-    setMessage('Creating account...')
-    const { error } = await supabase.auth.signUp({ email, password })
-    if (error) setMessage(`Error: ${error.message}`)
-    else setMessage('Success! Check your email for the confirmation link.')
-  }
+  useEffect(() => {
+    // 1. Fetch public mods (anyone can see these!)
+    async function fetchMods() {
+      const { data } = await supabase.from('mods').select('*')
+      if (data) setMods(data)
+    }
 
-  async function handleLogIn(e: React.FormEvent) {
-    e.preventDefault()
-    setMessage('Signing in...')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setMessage(`Error: ${error.message}`)
-    else setMessage('Logged in successfully!')
+    // 2. Check if user is currently logged in
+    async function checkUser() {
+      const { data: { session } } = await supabase.auth.getSession()
+      setUser(session?.user || null)
+    }
+
+    fetchMods()
+    checkUser()
+  }, [])
+
+  function handleCreateModClick() {
+    if (!user) {
+      alert("You need to be logged in to upload mods for Commissioners!")
+      window.location.href = "/login"
+    } else {
+      window.location.href = "/upload-mod"
+    }
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-gray-950 text-white">
-      <div className="w-full max-w-md p-8 bg-gray-900 rounded-xl border border-gray-800 shadow-2xl">
-        <h1 className="text-3xl font-extrabold text-center mb-2">Game Hub</h1>
-        <p className="text-gray-400 text-center text-sm mb-6">Log in or create an account to post mods and comments</p>
-
-        <form className="flex flex-col gap-4">
-          <div>
-            <label className="text-xs font-semibold text-gray-400 uppercase">Email</label>
-            <input
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-3 mt-1 bg-gray-800 border border-gray-700 rounded-lg text-white outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-gray-400 uppercase">Password</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 mt-1 bg-gray-800 border border-gray-700 rounded-lg text-white outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="flex gap-3 mt-4">
-            <button
-              onClick={handleLogIn}
-              className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 font-semibold rounded-lg transition"
-            >
-              Log In
-            </button>
-            <button
-              onClick={handleSignUp}
-              className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 font-semibold border border-gray-700 rounded-lg transition"
-            >
-              Sign Up
-            </button>
-          </div>
-        </form>
-
-        {message && (
-          <div className="mt-4 p-3 bg-gray-800 border border-gray-700 rounded text-center text-sm text-blue-400">
-            {message}
-          </div>
-        )}
+    <div className="p-8 bg-gray-950 text-white min-h-screen">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Commissioners - Community Mods</h1>
+        <button 
+          onClick={handleCreateModClick}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded font-semibold transition"
+        >
+          + Upload Mod
+        </button>
       </div>
-    </main>
+
+      {/* Publicly viewable list of mods */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {mods.map((mod) => (
+          <div key={mod.id} className="p-4 bg-gray-900 border border-gray-800 rounded-lg">
+            <h2 className="text-xl font-bold">{mod.title}</h2>
+            <p className="text-gray-400 text-sm mt-2">{mod.description}</p>
+            <a 
+              href={mod.file_url} 
+              download 
+              className="inline-block mt-4 text-blue-400 hover:underline text-sm font-semibold"
+            >
+              Download Mod ↓
+            </a>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
