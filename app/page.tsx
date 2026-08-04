@@ -1,66 +1,115 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { createClient } from './supabaseClient'
 
-export default function ModList() {
-  const [mods, setMods] = useState<any[]>([])
+export default function Home() {
   const [user, setUser] = useState<any>(null)
   const supabase = createClient()
 
   useEffect(() => {
-    // 1. Fetch public mods (anyone can see these!)
-    async function fetchMods() {
-      const { data } = await supabase.from('mods').select('*')
-      if (data) setMods(data)
-    }
-
-    // 2. Check if user is currently logged in
-    async function checkUser() {
+    async function getUser() {
       const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user || null)
     }
-
-    fetchMods()
-    checkUser()
+    getUser()
   }, [])
 
-  function handleCreateModClick() {
-    if (!user) {
-      alert("You need to be logged in to upload mods for Commissioners!")
-      window.location.href = "/login"
-    } else {
-      window.location.href = "/upload-mod"
-    }
-  }
-
   return (
-    <div className="p-8 bg-gray-950 text-white min-h-screen">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Commissioners - Community Mods</h1>
-        <button 
-          onClick={handleCreateModClick}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded font-semibold transition"
-        >
-          + Upload Mod
-        </button>
-      </div>
-
-      {/* Publicly viewable list of mods */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {mods.map((mod) => (
-          <div key={mod.id} className="p-4 bg-gray-900 border border-gray-800 rounded-lg">
-            <h2 className="text-xl font-bold">{mod.title}</h2>
-            <p className="text-gray-400 text-sm mt-2">{mod.description}</p>
-            <a 
-              href={mod.file_url} 
-              download 
-              className="inline-block mt-4 text-blue-400 hover:underline text-sm font-semibold"
-            >
-              Download Mod ↓
-            </a>
+    <div className="space-y-8">
+      {/* Hero Banner Box */}
+      <section className="border-4 border-white bg-black p-6 md:p-8 shadow-[8px_8px_0px_0px_#ffffff] flex flex-col md:flex-row justify-between items-center gap-6">
+        <div className="space-y-4 max-w-2xl">
+          <div className="inline-block px-2 py-1 bg-white text-black text-xs font-black uppercase">
+            COMMISSIONERS OFFICIAL HUB
           </div>
-        ))}
+          <h1 className="text-3xl md:text-5xl font-black tracking-tight uppercase">
+            COMMISSIONERS
+          </h1>
+          <p className="text-sm text-neutral-300 leading-relaxed">
+            Welcome to the official network. Download custom community mods, post in the retro discussion forums, and share your creations.
+          </p>
+          <div className="flex flex-wrap gap-4 pt-2">
+            <a 
+              href="https://randomunitydev.itch.io/commissioners" 
+              target="_blank" 
+              rel="noreferrer"
+              className="px-6 py-3 bg-white text-black border-2 border-white font-black uppercase hover:bg-neutral-300"
+            >
+              Play on itch.io ↗
+            </a>
+            <Link 
+              href="/mods" 
+              className="px-6 py-3 bg-black text-white border-2 border-white font-black uppercase hover:bg-white hover:text-black"
+            >
+              Browse Mods
+            </Link>
+          </div>
+        </div>
+
+        {/* User Card / Profile Box */}
+        <div className="w-full md:w-64 border-2 border-white bg-neutral-950 p-4 text-center space-y-3">
+          <h3 className="text-xs uppercase font-bold border-b-2 border-white pb-2">:: USER PROFILE ::</h3>
+          {user ? (
+            <div className="space-y-2">
+              <img 
+                src={user.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/pixel-art/svg?seed=user'} 
+                alt="Avatar" 
+                className="w-16 h-16 mx-auto border-2 border-white bg-black"
+              />
+              <p className="text-sm font-bold uppercase">{user.user_metadata?.display_name || user.email}</p>
+              <p className="text-[10px] text-emerald-400 font-bold">[ ONLINE ]</p>
+            </div>
+          ) : (
+            <div className="space-y-3 py-2">
+              <p className="text-xs text-neutral-400">YOU ARE CURRENTLY VISITING AS GUEST.</p>
+              <Link 
+                href="/login" 
+                className="inline-block w-full py-2 bg-white text-black font-bold uppercase text-xs"
+              >
+                Log In / Register
+              </Link>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* 2000s Portal Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* News Box */}
+        <div className="border-4 border-white bg-black p-6 space-y-4">
+          <h2 className="text-lg font-black uppercase border-b-2 border-white pb-2 flex justify-between">
+            <span>[ SYSTEM NEWS ]</span>
+            <span>2026</span>
+          </h2>
+          <div className="space-y-4 text-xs">
+            <article className="border-b border-neutral-800 pb-3">
+              <span className="text-neutral-500 font-bold">[AUG 03]</span>
+              <h3 className="text-sm font-bold uppercase mt-1">COMMISSIONERS HUB LAUNCHED</h3>
+              <p className="text-neutral-400 mt-1">The main community portal is online. Login functionality, mods section, and forums are now active.</p>
+            </article>
+          </div>
+        </div>
+
+        {/* Community Activity */}
+        <div className="border-4 border-white bg-black p-6 space-y-4">
+          <h2 className="text-lg font-black uppercase border-b-2 border-white pb-2">
+            [ QUICK DIRECTORY ]
+          </h2>
+          <ul className="space-y-2 text-sm font-bold uppercase">
+            <li>
+              <Link href="/mods" className="block p-3 border-2 border-white hover:bg-white hover:text-black">
+                → MOD ARCHIVE & UPLOADS
+              </Link>
+            </li>
+            <li>
+              <Link href="/forum" className="block p-3 border-2 border-white hover:bg-white hover:text-black">
+                → DISCUSSION BOARDS
+              </Link>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   )
