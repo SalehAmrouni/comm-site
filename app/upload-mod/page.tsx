@@ -1,72 +1,124 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { createClient } from '../supabaseClient'
 
 export default function UploadModPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [fileUrl, setFileUrl] = useState('')
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
 
-  function handleSubmit(e: React.FormEvent) {
+  const router = useRouter()
+  const supabase = createClient()
+
+  useEffect(() => {
+    async function checkAuth() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setMessage('AUTHENTICATION REQUIRED. REDIRECTING TO LOGIN...')
+        setTimeout(() => router.push('/login'), 2000)
+      } else {
+        setUser(session.user)
+      }
+    }
+    checkAuth()
+  }, [router, supabase])
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    alert(`Mod submitted: ${title}`)
+    if (!user) return
+
+    setLoading(true)
+    setMessage('UPLOADING MOD TO DATABASE...')
+
+    const displayName = user.user_metadata?.display_name || user.email.split('@')[0]
+
+    const { error } = await supabase.from('mods').insert([
+      {
+        title,
+        description,
+        file_url: fileUrl,
+        author_id: user.id,
+        author_name: displayName,
+      },
+    ])
+
+    setLoading(false)
+
+    if (error) {
+      setMessage(`ERROR: ${error.message}`)
+    } else {
+      setMessage('SUCCESS! MOD PUBLISHED.')
+      setTimeout(() => router.push('/mods'), 1500)
+    }
   }
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white p-8">
-      <div className="max-w-2xl mx-auto bg-gray-900 p-6 rounded-xl border border-gray-800 shadow-xl">
-        <Link href="/" className="text-gray-400 hover:text-white text-sm mb-4 inline-block">
-          ← Back to Home
-        </Link>
+    <main className="max-w-2xl mx-auto my-8 border-4 border-white bg-black p-6 shadow-[8px_8px_0px_0px_#ffffff]">
+      <Link href="/mods" className="text-xs font-bold uppercase hover:underline mb-4 inline-block">
+        ← Back to Mods Archive
+      </Link>
 
-        <h1 className="text-2xl font-bold mb-6">Upload a Mod for Commissioners</h1>
+      <h1 className="text-xl font-black uppercase border-b-2 border-white pb-2 mb-6">
+        [ SUBMIT CUSTOM MOD ]
+      </h1>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label className="block text-xs uppercase text-gray-400 font-semibold mb-1">Mod Title</label>
-            <input 
-              type="text" 
-              placeholder="e.g. Custom Character Skin Pack" 
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-xs uppercase font-bold mb-1">[ Mod Title ]</label>
+          <input 
+            type="text" 
+            placeholder="e.g. Sharp Outlines Skin Pack" 
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none focus:bg-neutral-900"
+            required
+          />
+        </div>
 
-          <div>
-            <label className="block text-xs uppercase text-gray-400 font-semibold mb-1">Description</label>
-            <textarea 
-              rows={4}
-              placeholder="Describe what your mod does..." 
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
+        <div>
+          <label className="block text-xs uppercase font-bold mb-1">[ Mod Description ]</label>
+          <textarea 
+            rows={4}
+            placeholder="Describe what your mod adds or replaces..." 
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none focus:bg-neutral-900"
+            required
+          />
+        </div>
 
-          <div>
-            <label className="block text-xs uppercase text-gray-400 font-semibold mb-1">Mod Download Link</label>
-            <input 
-              type="url" 
-              placeholder="https://drive.google.com/... or direct link" 
-              value={fileUrl}
-              onChange={(e) => setFileUrl(e.target.value)}
-              className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
+        <div>
+          <label className="block text-xs uppercase font-bold mb-1">[ Download URL ]</label>
+          <input 
+            type="url" 
+            placeholder="https://drive.google.com/... or direct download link" 
+            value={fileUrl}
+            onChange={(e) => setFileUrl(e.target.value)}
+            className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none focus:bg-neutral-900"
+            required
+          />
+        </div>
 
-          <button 
-            type="submit" 
-            className="mt-4 py-3 bg-blue-600 hover:bg-blue-500 font-bold rounded-lg transition"
-          >
-            Submit Mod
-          </button>
-        </form>
-      </div>
+        <button 
+          type="submit" 
+          disabled={loading || !user}
+          className="w-full py-3 bg-white text-black font-black uppercase border-2 border-white hover:bg-neutral-300 disabled:opacity-50"
+        >
+          {loading ? 'PUBLISHING...' : 'PUBLISH MOD'}
+        </button>
+      </form>
+
+      {message && (
+        <div className="mt-4 p-3 border-2 border-white bg-neutral-900 text-xs font-bold text-center uppercase">
+          {message}
+        </div>
+      )}
     </main>
   )
 }
