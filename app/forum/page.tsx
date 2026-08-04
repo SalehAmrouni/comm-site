@@ -19,11 +19,9 @@ export default function ForumPage() {
 
   useEffect(() => {
     async function loadData() {
-      // Check user
       const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user || null)
 
-      // Fetch threads
       const { data } = await supabase
         .from('forum_threads')
         .select('*')
@@ -43,7 +41,7 @@ export default function ForumPage() {
     setStatusMsg('POSTING THREAD...')
 
     const displayName = user.user_metadata?.display_name || user.email.split('@')[0]
-    const avatar = user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user.email}`
+    const avatar = user.user_metadata?.avatar_url || '/nopfp.png'
 
     const { data, error } = await supabase.from('forum_threads').insert([
       {
@@ -77,6 +75,7 @@ export default function ForumPage() {
 
         {user ? (
           <button 
+            type="button"
             onClick={() => setShowNewThread(!showNewThread)}
             className="px-6 py-3 bg-white text-black font-black uppercase border-2 border-white hover:bg-neutral-300"
           >
@@ -98,7 +97,7 @@ export default function ForumPage() {
               <label className="block text-xs uppercase font-bold mb-1">[ Category ]</label>
               <select 
                 value={category} 
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value)}
                 className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none"
               >
                 <option value="General Discussion">General Discussion</option>
@@ -112,7 +111,7 @@ export default function ForumPage() {
               <input 
                 type="text" 
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
                 className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none"
                 placeholder="Thread title..."
                 required
@@ -124,7 +123,7 @@ export default function ForumPage() {
               <textarea 
                 rows={4}
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
                 className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none"
                 placeholder="Write your post here..."
                 required
@@ -148,20 +147,28 @@ export default function ForumPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {threads.map((t) => (
-            <div key={t.id} className="border-4 border-white bg-black p-4 space-y-2">
-              <div className="flex justify-between items-center text-xs font-bold uppercase text-neutral-400 border-b-2 border-white pb-2">
-                <span>[ {t.category} ]</span>
-                <span>{new Date(t.created_at).toLocaleDateString()}</span>
+          {threads.map((t) => {
+            const avatarSrc = t.author_avatar || '/nopfp.png'
+            return (
+              <div key={t.id} className="border-4 border-white bg-black p-4 space-y-2">
+                <div className="flex justify-between items-center text-xs font-bold uppercase text-neutral-400 border-b-2 border-white pb-2">
+                  <span>[ {t.category} ]</span>
+                  <span>{new Date(t.created_at).toLocaleDateString()}</span>
+                </div>
+                <h2 className="text-lg font-black uppercase text-white">{t.title}</h2>
+                <p className="text-xs text-neutral-300 leading-relaxed">{t.content}</p>
+                <div className="flex items-center gap-2 pt-2 border-t border-neutral-800 text-xs font-bold">
+                  <img 
+                    src={avatarSrc} 
+                    alt="Avatar" 
+                    onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => { (e.target as HTMLImageElement).src = '/nopfp.png' }}
+                    className="w-6 h-6 border border-white bg-black object-cover" 
+                  />
+                  <span className="text-neutral-400">POSTED BY @{t.author_name}</span>
+                </div>
               </div>
-              <h2 className="text-lg font-black uppercase text-white">{t.title}</h2>
-              <p className="text-xs text-neutral-300 leading-relaxed">{t.content}</p>
-              <div className="flex items-center gap-2 pt-2 border-t border-neutral-800 text-xs font-bold">
-                <img src={t.author_avatar} alt="Avatar" className="w-6 h-6 border border-white bg-black" />
-                <span className="text-neutral-400">POSTED BY @{t.author_name}</span>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

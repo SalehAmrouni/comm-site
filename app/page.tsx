@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from './supabaseClient'
 
@@ -14,7 +14,9 @@ export default function Home() {
       setUser(session?.user || null)
     }
     getUser()
-  }, [])
+  }, [supabase])
+
+  const avatarSrc = user?.user_metadata?.avatar_url || '/nopfp.png'
 
   return (
     <div className="space-y-8">
@@ -54,12 +56,19 @@ export default function Home() {
           {user ? (
             <div className="space-y-2">
               <img 
-                src={user.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/pixel-art/svg?seed=user'} 
+                src={avatarSrc} 
                 alt="Avatar" 
-                className="w-16 h-16 mx-auto border-2 border-white bg-black"
+                onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => { (e.target as HTMLImageElement).src = '/nopfp.png' }}
+                className="w-16 h-16 mx-auto border-2 border-white bg-black object-cover"
               />
-              <p className="text-sm font-bold uppercase">{user.user_metadata?.display_name || user.email}</p>
+              <p className="text-sm font-bold uppercase">{user.user_metadata?.display_name || user.email.split('@')[0]}</p>
               <p className="text-[10px] text-emerald-400 font-bold">[ ONLINE ]</p>
+              <Link 
+                href="/profile"
+                className="inline-block px-3 py-1 bg-white text-black text-xs font-bold uppercase border border-white hover:bg-neutral-300"
+              >
+                Settings
+              </Link>
             </div>
           ) : (
             <div className="space-y-3 py-2">
@@ -87,7 +96,7 @@ export default function Home() {
             <article className="border-b border-neutral-800 pb-3">
               <span className="text-neutral-500 font-bold">[AUG 03]</span>
               <h3 className="text-sm font-bold uppercase mt-1">COMMISSIONERS HUB LAUNCHED</h3>
-              <p className="text-neutral-400 mt-1">The main community portal is online. Login functionality, mods section, and forums are now active.</p>
+              <p className="text-neutral-400 mt-1">The main community portal is online. Login functionality, mods section, user profiles, and forums are active.</p>
             </article>
           </div>
         </div>
