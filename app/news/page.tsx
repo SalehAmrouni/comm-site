@@ -85,13 +85,11 @@ export default function NewsPage() {
     const enrichedPosts: NewsPost[] = await Promise.all(
       (postsData || []).map(async (post) => {
         if (post.post_type === 'POLL') {
-          // Fetch poll options
           const { data: options } = await supabase
             .from('poll_options')
             .select('*')
             .eq('post_id', post.id)
 
-          // Fetch all votes for this poll
           const { data: votes } = await supabase
             .from('poll_votes')
             .select('*')
@@ -227,7 +225,33 @@ export default function NewsPage() {
       }
     }
 
-    setStatusMsg('POST PUBLISHED SUCCESSFULLY!')
+    // --- NEWSLETTER BLAST TRIGGER ---
+    if (postType === 'NEWSLETTER') {
+      setStatusMsg('POST PUBLISHED! SENDING NEWSLETTER EMAIL BLAST...')
+      try {
+        const emailRes = await fetch('/api/send-newsletter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: title.trim(),
+            htmlContent: htmlContent.trim(),
+          }),
+        })
+
+        const emailData = await emailRes.json()
+        if (!emailRes.ok) {
+          console.error('Newsletter email blast error:', emailData)
+          setStatusMsg(`POST PUBLISHED, BUT EMAIL BLAST FAILED: ${emailData.error || 'Unknown error'}`)
+          return
+        }
+      } catch (err: any) {
+        console.error('Failed to trigger email route:', err)
+        setStatusMsg('POST PUBLISHED, BUT FAILED TO REACH NEWSLETTER SERVER ROUTE.')
+        return
+      }
+    }
+
+    setStatusMsg('POST PUBLISHED & EMAILS SENT SUCCESSFULLY!')
     setTitle('')
     setHtmlContent('')
     setPollOptions(['Option 1', 'Option 2'])
@@ -397,7 +421,7 @@ export default function NewsPage() {
                   rows={8}
                   value={htmlContent}
                   onChange={(e) => setHtmlContent(e.target.value)}
-                  placeholder="You can write plain text or HTML like <h3>Header</h3>, <p>Text</p>, <ul><li>Item</li></ul>, <img src='...' />"
+                  placeholder="You can write plain text or HTML like <h3>Header</h3>, <p>Text</p>, <ul><li>Item</li></ul>"
                   className="w-full p-2 bg-black border-2 border-white text-white font-mono text-xs outline-none focus:bg-neutral-900"
                   required
                 />
