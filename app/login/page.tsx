@@ -21,26 +21,54 @@ export default function LoginPage() {
     setMessage('Processing request...')
 
     if (isSignUp) {
+      const cleanDisplayName = displayName.trim() || email.split('@')[0]
       const finalAvatar = avatarUrl.trim() !== '' ? avatarUrl.trim() : '/nopfp.png'
 
-      const { error } = await supabase.auth.signUp({
+      // --- CHARACTER LIMIT VALIDATION ---
+      if (cleanDisplayName.length > 20) {
+        setMessage('ERROR: Display name cannot exceed 20 characters.')
+        setLoading(false)
+        return
+      }
+
+      if (cleanDisplayName.length < 3) {
+        setMessage('ERROR: Display name must be at least 3 characters long.')
+        setLoading(false)
+        return
+      }
+
+      // 1. Sign up user in auth.users
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            display_name: displayName.trim() || email.split('@')[0],
+            display_name: cleanDisplayName,
             avatar_url: finalAvatar,
           },
         },
       })
 
-      setLoading(false)
-
       if (error) {
         setMessage(`ERROR: ${error.message}`)
-      } else {
-        setMessage('SUCCESS! Account created. Check your email for verification link.')
+        setLoading(false)
+        return
       }
+
+      // 2. Direct database fix: Force insert into public.profiles table
+      if (data?.user) {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          email: email,
+          display_name: cleanDisplayName,
+          avatar_url: finalAvatar,
+          role: 'user',
+          status: 'active',
+        })
+      }
+
+      setLoading(false)
+      setMessage('SUCCESS! Account created. Check your email for verification link or log in.')
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
 
@@ -83,11 +111,17 @@ export default function LoginPage() {
         {isSignUp && (
           <>
             <div>
-              <label className="block text-xs uppercase font-bold mb-1">[ Display Name ]</label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs uppercase font-bold">[ Display Name ]</label>
+                <span className={`text-[10px] font-mono ${displayName.length >= 20 ? 'text-red-400 font-bold' : 'text-neutral-400'}`}>
+                  {displayName.length}/20 CHARS
+                </span>
+              </div>
               <input
                 type="text"
                 placeholder="xX_Commissioner_Xx"
                 value={displayName}
+                maxLength={20}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDisplayName(e.target.value)}
                 className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none focus:bg-neutral-900"
                 required={isSignUp}
@@ -149,7 +183,9 @@ export default function LoginPage() {
       </form>
 
       {message && (
-        <div className="mt-4 p-3 border-2 border-white bg-neutral-900 text-xs font-bold text-center uppercase">
+        <div className={`mt-4 p-3 border-2 text-xs font-bold text-center uppercase ${
+          message.startsWith('ERROR') ? 'border-red-500 bg-red-950/50 text-red-400' : 'border-white bg-neutral-900 text-white'
+        }`}>
           {message}
         </div>
       )}

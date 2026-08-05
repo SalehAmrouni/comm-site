@@ -105,6 +105,19 @@ function AccountContent() {
     e.preventDefault()
     if (!isOwnProfile || !currentUser) return
 
+    const cleanDisplayName = displayName.trim()
+
+    // --- CHARACTER LIMIT VALIDATION ---
+    if (cleanDisplayName.length > 20) {
+      setMessage('ERROR: Display name cannot exceed 20 characters.')
+      return
+    }
+
+    if (cleanDisplayName.length < 3) {
+      setMessage('ERROR: Display name must be at least 3 characters long.')
+      return
+    }
+
     setSaving(true)
     setMessage('SAVING CHANGES...')
 
@@ -113,7 +126,7 @@ function AccountContent() {
     // A. Update Supabase Auth User Metadata & Password
     const authUpdates: any = {
       data: {
-        display_name: displayName,
+        display_name: cleanDisplayName,
         avatar_url: finalAvatar,
       },
     }
@@ -134,7 +147,7 @@ function AccountContent() {
     const { error: dbError } = await supabase
       .from('profiles')
       .update({
-        display_name: displayName,
+        display_name: cleanDisplayName,
         avatar_url: finalAvatar,
       })
       .eq('id', currentUser.id)
@@ -149,7 +162,7 @@ function AccountContent() {
       // Update local viewed profile state
       setViewedProfile((prev: any) => ({
         ...prev,
-        display_name: displayName,
+        display_name: cleanDisplayName,
         avatar_url: finalAvatar,
       }))
     }
@@ -240,10 +253,16 @@ function AccountContent() {
           <h2 className="text-xs font-bold text-yellow-400 uppercase">[ EDIT MY PROFILE DATA ]</h2>
           
           <div>
-            <label className="block text-xs uppercase font-bold mb-1">[ Display Name ]</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-xs uppercase font-bold">[ Display Name ]</label>
+              <span className={`text-[10px] font-mono ${displayName.length >= 20 ? 'text-red-400 font-bold' : 'text-neutral-400'}`}>
+                {displayName.length}/20 CHARS
+              </span>
+            </div>
             <input
               type="text"
               value={displayName}
+              maxLength={20}
               onChange={(e) => setDisplayName(e.target.value)}
               className="w-full p-2 bg-black border-2 border-white text-white font-mono text-xs outline-none focus:bg-neutral-900"
               required
@@ -290,7 +309,9 @@ function AccountContent() {
       )}
 
       {message && (
-        <div className="p-3 border-2 border-white bg-neutral-900 text-xs font-bold text-center uppercase">
+        <div className={`p-3 border-2 text-xs font-bold text-center uppercase ${
+          message.startsWith('ERROR') ? 'border-red-500 bg-red-950/50 text-red-400' : 'border-white bg-neutral-900 text-white'
+        }`}>
           {message}
         </div>
       )}
