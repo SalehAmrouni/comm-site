@@ -1,116 +1,129 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import Link from 'next/link'
+import React, { useState } from 'react'
+import { createClient } from '../supabaseClient' // Fixed import path for upload-mod folder
 import { useRouter } from 'next/navigation'
-import { createClient } from '../supabaseClient'
 
 export default function UploadModPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [fileUrl, setFileUrl] = useState('')
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imageUrlInput, setImageUrlInput] = useState('')
+  const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState('')
 
   const router = useRouter()
   const supabase = createClient()
 
-  useEffect(() => {
-    async function checkAuth() {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        setMessage('AUTHENTICATION REQUIRED. REDIRECTING TO LOGIN...')
-        setTimeout(() => router.push('/login'), 2000)
-      } else {
-        setUser(session.user)
-      }
-    }
-    checkAuth()
-  }, [router, supabase])
-
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleCreateMod(e: React.FormEvent) {
     e.preventDefault()
-    if (!user) return
+    setUploading(true)
+    setMessage('')
 
-    setLoading(true)
-    setMessage('UPLOADING MOD TO DATABASE...')
+    try {
+      let finalImageUrl = imageUrlInput
 
-    const displayName = user.user_metadata?.display_name || user.email.split('@')[0]
+      // 1. Upload file to Supabase Storage 'mod-images' bucket if selected
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop()
+        const fileName = `${Date.now()}.${fileExt}`
+        const filePath = `public/${fileName}`
 
-    const { error } = await supabase.from('mods').insert([
-      {
-        title,
-        description,
-        file_url: fileUrl,
-        author_id: user.id,
-        author_name: displayName,
-      },
-    ])
+        const { error: uploadError } = await supabase.storage
+          .from('mod-images')
+          .upload(filePath, imageFile)
 
-    setLoading(false)
+        if (uploadError) throw uploadError
 
-    if (error) {
-      setMessage(`ERROR: ${error.message}`)
-    } else {
-      setMessage('SUCCESS! MOD PUBLISHED.')
+        const { data: publicUrlData } = supabase.storage
+          .from('mod-images')
+          .getPublicUrl(filePath)
+
+        finalImageUrl = publicUrlData.publicUrl
+      }
+
+      // 2. Insert new mod into 'mods' database table
+      const { error: dbError } = await supabase.from('mods').insert([
+        {
+          title,
+          description,
+          image_url: finalImageUrl || null,
+        },
+      ])
+
+      if (dbError) throw dbError
+
+      setMessage('MOD POSTED SUCCESSFULLY!')
       setTimeout(() => router.push('/mods'), 1500)
+    } catch (err: any) {
+      setMessage(`ERROR: ${err.message || 'FAILED TO POST MOD'}`)
+    } finally {
+      setUploading(false)
     }
   }
 
   return (
-    <main className="max-w-2xl mx-auto my-8 border-4 border-white bg-black p-6 shadow-[8px_8px_0px_0px_#ffffff]">
-      <Link href="/mods" className="text-xs font-bold uppercase hover:underline mb-4 inline-block">
-        ← Back to Mods Archive
-      </Link>
+    <main className="max-w-xl mx-auto my-8 p-6 border-4 border-white bg-black text-white font-mono shadow-[8px_8px_0px_0px_#ffffff]">
+      <h1 className="text-xl font-black uppercase mb-6 text-center">[ UPLOAD MOD ]</h1>
 
-      <h1 className="text-xl font-black uppercase border-b-2 border-white pb-2 mb-6">
-        [ SUBMIT CUSTOM MOD ]
-      </h1>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleCreateMod} className="space-y-4">
         <div>
-          <label className="block text-xs uppercase font-bold mb-1">[ Mod Title ]</label>
-          <input 
-            type="text" 
-            placeholder="e.g. Sharp Outlines Skin Pack" 
+          <label className="block text-xs uppercase font-bold mb-1">[ MOD TITLE ]</label>
+          <input
+            type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none focus:bg-neutral-900"
+            className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none"
             required
           />
         </div>
 
         <div>
-          <label className="block text-xs uppercase font-bold mb-1">[ Mod Description ]</label>
-          <textarea 
-            rows={4}
-            placeholder="Describe what your mod adds or replaces..." 
+          <label className="block text-xs uppercase font-bold mb-1">[ DESCRIPTION ]</label>
+          <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none focus:bg-neutral-900"
+            className="w-full p-2 bg-black border-2 border-white text-white font-mono h-24 outline-none"
             required
           />
         </div>
 
-        <div>
-          <label className="block text-xs uppercase font-bold mb-1">[ Download URL ]</label>
-          <input 
-            type="url" 
-            placeholder="https://drive.google.com/... or direct download link" 
-            value={fileUrl}
-            onChange={(e) => setFileUrl(e.target.value)}
-            className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none focus:bg-neutral-900"
-            required
-          />
+        {/* IMAGE OPTION SECTION */}
+        <div className="border-2 border-dashed border-neutral-700 p-4 bg-neutral-900 space-y-3">
+          <label className="block text-xs uppercase font-bold text-yellow-400">
+            [ MOD IMAGE OPTION ]
+          </label>
+
+          <div>
+            <span className="block text-[10px] text-neutral-400 mb-1">Option A: Upload Image File</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+              className="text-xs text-neutral-300 file:mr-2 file:py-1 file:px-2 file:border-0 file:bg-white file:text-black file:font-bold file:uppercase cursor-pointer"
+            />
+          </div>
+
+          <div className="text-center text-xs font-bold text-neutral-500">- OR -</div>
+
+          <div>
+            <span className="block text-[10px] text-neutral-400 mb-1">Option B: Direct Image URL</span>
+            <input
+              type="url"
+              placeholder="https://example.com/image.png"
+              value={imageUrlInput}
+              onChange={(e) => setImageUrlInput(e.target.value)}
+              className="w-full p-2 bg-black border border-neutral-600 text-xs text-white outline-none"
+            />
+          </div>
         </div>
 
-        <button 
-          type="submit" 
-          disabled={loading || !user}
+        <button
+          type="submit"
+          disabled={uploading}
           className="w-full py-3 bg-white text-black font-black uppercase border-2 border-white hover:bg-neutral-300 disabled:opacity-50"
         >
-          {loading ? 'PUBLISHING...' : 'PUBLISH MOD'}
+          {uploading ? 'POSTING MOD...' : 'SUBMIT MOD'}
         </button>
       </form>
 
