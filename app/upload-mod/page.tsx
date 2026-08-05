@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 export default function UploadModPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [downloadUrl, setDownloadUrl] = useState('') // Restored mod file link field
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imageUrlInput, setImageUrlInput] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -16,7 +17,7 @@ export default function UploadModPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  // STEP 2 AUTH GUARD: Block guests and redirect to login if not signed in
+  // Guard: Redirect guests to login
   useEffect(() => {
     async function checkUser() {
       const { data: { session } } = await supabase.auth.getSession()
@@ -37,7 +38,7 @@ export default function UploadModPage() {
     try {
       let finalImageUrl = imageUrlInput
 
-      // 1. Upload file to Supabase Storage 'mod-images' bucket if selected
+      // 1. Upload preview image if selected
       if (imageFile) {
         const fileExt = imageFile.name.split('.').pop()
         const fileName = `${Date.now()}.${fileExt}`
@@ -56,12 +57,17 @@ export default function UploadModPage() {
         finalImageUrl = publicUrlData.publicUrl
       }
 
-      // 2. Insert new mod into 'mods' database table
+      // 2. Get current user ID
+      const { data: { user } } = await supabase.auth.getUser()
+
+      // 3. Insert mod record with mod download_url
       const { error: dbError } = await supabase.from('mods').insert([
         {
           title,
           description,
+          download_url: downloadUrl, // Saving mod file link
           image_url: finalImageUrl || null,
+          user_id: user?.id || null
         },
       ])
 
@@ -76,7 +82,6 @@ export default function UploadModPage() {
     }
   }
 
-  // Show quick loading screen while checking auth session
   if (checkingAuth) {
     return (
       <main className="max-w-xl mx-auto my-12 p-6 border-4 border-white bg-black text-white font-mono shadow-[8px_8px_0px_0px_#ffffff] text-center">
@@ -97,8 +102,22 @@ export default function UploadModPage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none"
+            placeholder="e.g., HD Texture Overhaul"
             required
           />
+        </div>
+
+        <div>
+          <label className="block text-xs uppercase font-bold mb-1">[ MOD FILE / DOWNLOAD URL ]</label>
+          <input
+            type="url"
+            value={downloadUrl}
+            onChange={(e) => setDownloadUrl(e.target.value)}
+            className="w-full p-2 bg-black border-2 border-yellow-400 text-yellow-400 font-mono outline-none"
+            placeholder="https://drive.google.com/..., https://mediafire.com/..., or direct .zip link"
+            required
+          />
+          <span className="text-[10px] text-neutral-400 mt-1 block">Paste the direct download URL or cloud host link for your mod file (.zip, .rar, .7z).</span>
         </div>
 
         <div>
@@ -107,6 +126,7 @@ export default function UploadModPage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             className="w-full p-2 bg-black border-2 border-white text-white font-mono h-24 outline-none"
+            placeholder="Describe your mod features, installation instructions, etc."
             required
           />
         </div>
@@ -114,7 +134,7 @@ export default function UploadModPage() {
         {/* IMAGE OPTION SECTION */}
         <div className="border-2 border-dashed border-neutral-700 p-4 bg-neutral-900 space-y-3">
           <label className="block text-xs uppercase font-bold text-yellow-400">
-            [ MOD IMAGE OPTION ]
+            [ MOD PREVIEW IMAGE (OPTIONAL) ]
           </label>
 
           <div>
@@ -133,7 +153,7 @@ export default function UploadModPage() {
             <span className="block text-[10px] text-neutral-400 mb-1">Option B: Direct Image URL</span>
             <input
               type="url"
-              placeholder="https://example.com/image.png"
+              placeholder="https://example.com/preview.png"
               value={imageUrlInput}
               onChange={(e) => setImageUrlInput(e.target.value)}
               className="w-full p-2 bg-black border border-neutral-600 text-xs text-white outline-none"

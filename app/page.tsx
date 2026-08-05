@@ -6,16 +6,29 @@ import { createClient } from './supabaseClient'
 
 export default function Home() {
   const [user, setUser] = useState<any>(null)
+  const [role, setRole] = useState<string>('user')
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
   useEffect(() => {
-    async function getUser() {
+    async function getUserData() {
       const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user || null)
+      const currentUser = session?.user || null
+      setUser(currentUser)
+
+      if (currentUser) {
+        // Fetch role from profiles table
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', currentUser.id)
+          .single()
+
+        setRole(profile?.role || 'user')
+      }
       setLoading(false)
     }
-    getUser()
+    getUserData()
   }, [supabase])
 
   const avatarSrc = user?.user_metadata?.avatar_url || '/nopfp.png'
@@ -43,6 +56,7 @@ export default function Home() {
             >
               🎮 Download Builds
             </Link>
+            
             <Link 
               href="/mods" 
               className="px-5 py-3 bg-black text-white border-2 border-white font-black uppercase text-xs hover:bg-white hover:text-black"
@@ -50,7 +64,7 @@ export default function Home() {
               Browse Mods
             </Link>
 
-            {/* CONDITIONAL MOD UPLOAD BUTTON (Requires Account) */}
+            {/* CONDITIONAL MOD UPLOAD BUTTON */}
             {user ? (
               <Link 
                 href="/upload-mod" 
@@ -64,6 +78,16 @@ export default function Home() {
                 className="px-5 py-3 bg-neutral-800 text-neutral-400 border-2 border-neutral-600 font-bold uppercase text-xs hover:bg-neutral-700 hover:text-white"
               >
                 🔒 Upload Mod (Login Required)
+              </Link>
+            )}
+
+            {/* ADMIN ONLY BUTTON */}
+            {role === 'admin' && (
+              <Link 
+                href="/admin" 
+                className="px-5 py-3 bg-red-600 text-white border-2 border-white font-black uppercase text-xs hover:bg-red-500 animate-pulse"
+              >
+                🛠️ Admin Panel
               </Link>
             )}
           </div>
@@ -83,10 +107,19 @@ export default function Home() {
                 className="w-16 h-16 mx-auto border-2 border-white bg-black object-cover"
               />
               <p className="text-sm font-bold uppercase truncate">{user.user_metadata?.display_name || user.email.split('@')[0]}</p>
-              <p className="text-[10px] text-emerald-400 font-bold">[ ONLINE ]</p>
+              
+              <div className="flex justify-center items-center gap-2">
+                <span className="text-[10px] text-emerald-400 font-bold">[ ONLINE ]</span>
+                <span className={`text-[9px] px-1.5 py-0.5 font-bold uppercase ${
+                  role === 'admin' ? 'bg-red-600 text-white' : role === 'tester' ? 'bg-emerald-400 text-black' : 'bg-neutral-800 text-neutral-300'
+                }`}>
+                  {role}
+                </span>
+              </div>
+
               <Link 
                 href="/account"
-                className="inline-block px-3 py-1 bg-white text-black text-xs font-bold uppercase border border-white hover:bg-neutral-300"
+                className="inline-block px-3 py-1 bg-white text-black text-xs font-bold uppercase border border-white hover:bg-neutral-300 mt-2"
               >
                 Account Profile
               </Link>
@@ -116,14 +149,14 @@ export default function Home() {
           <div className="space-y-4 text-xs">
             <article className="border-b border-neutral-800 pb-3">
               <span className="text-neutral-500 font-bold">[AUG 04]</span>
-              <h3 className="text-sm font-bold uppercase mt-1 text-yellow-400">PUBLIC & TESTER BUILDS LIVE</h3>
-              <p className="text-neutral-300 mt-1">Download official public releases directly or check out early experimental builds if you have the Tester role.</p>
+              <h3 className="text-sm font-bold uppercase mt-1 text-yellow-400">ADMIN CONTROL PANEL ACTIVE</h3>
+              <p className="text-neutral-300 mt-1">Admins can now manage user roles (Testers/Admins), upload private builds, and moderate community mod files.</p>
             </article>
 
             <article className="border-b border-neutral-800 pb-3">
               <span className="text-neutral-500 font-bold">[AUG 04]</span>
-              <h3 className="text-sm font-bold uppercase mt-1">MOD IMAGE & AUTH CHECKS</h3>
-              <p className="text-neutral-300 mt-1">Registered users can now post mods with image attachments. Account verification is required for uploading.</p>
+              <h3 className="text-sm font-bold uppercase mt-1">PUBLIC & TESTER BUILDS LIVE</h3>
+              <p className="text-neutral-300 mt-1">Download official public releases directly or check out early experimental builds if you have the Tester role.</p>
             </article>
 
             <article className="pb-1">
@@ -161,6 +194,13 @@ export default function Home() {
                 </Link>
               )}
             </li>
+            {role === 'admin' && (
+              <li>
+                <Link href="/admin" className="block p-3 border-2 border-red-500 bg-neutral-950 text-red-400 hover:bg-red-600 hover:text-white transition-colors">
+                  🛠️ ADMIN & DEV CONTROL PANEL
+                </Link>
+              </li>
+            )}
             <li>
               <Link href="/forum" className="block p-3 border-2 border-white hover:bg-white hover:text-black transition-colors">
                 → DISCUSSION BOARDS

@@ -6,11 +6,14 @@ import Link from 'next/link'
 
 export default function DownloadBuildsPage() {
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [publicBuilds, setPublicBuilds] = useState<any[]>([])
+  const [privateBuilds, setPrivateBuilds] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
   useEffect(() => {
-    async function checkRole() {
+    async function init() {
+      // Check user role
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
@@ -18,9 +21,16 @@ export default function DownloadBuildsPage() {
       } else {
         setUserRole('guest')
       }
+
+      // Fetch builds from DB
+      const { data: builds } = await supabase.from('builds').select('*').order('created_at', { ascending: false })
+      if (builds) {
+        setPublicBuilds(builds.filter((b) => !b.is_private))
+        setPrivateBuilds(builds.filter((b) => b.is_private))
+      }
       setLoading(false)
     }
-    checkRole()
+    init()
   }, [supabase])
 
   const isTesterOrAdmin = userRole === 'tester' || userRole === 'admin'
@@ -29,32 +39,52 @@ export default function DownloadBuildsPage() {
     <main className="max-w-4xl mx-auto my-8 p-6 border-4 border-white bg-black text-white font-mono shadow-[8px_8px_0px_0px_#ffffff] space-y-8">
       <div>
         <h1 className="text-2xl font-black uppercase border-b-4 border-white pb-3">[ GAME BUILDS & DOWNLOADS ]</h1>
-        <p className="text-xs text-neutral-400 mt-2">Download official public releases or test experimental builds.</p>
+        <p className="text-xs text-neutral-400 mt-2">Download official public releases or access private tester builds.</p>
       </div>
 
-      {/* SECTION 1: PUBLIC BUILDS (ACCESSIBLE TO ALL) */}
+      {/* PUBLIC STABLE BUILDS */}
       <section className="space-y-4">
         <h2 className="text-lg font-bold uppercase text-yellow-400 flex items-center gap-2">
           🌐 PUBLIC STABLE RELEASES
         </h2>
-        <div className="border-2 border-white bg-neutral-900 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <span className="px-2 py-0.5 bg-emerald-500 text-black text-[10px] font-bold uppercase">STABLE RELEASE</span>
-            <h3 className="font-bold text-base mt-1">COMMISSIONERS v1.0.0</h3>
-            <p className="text-xs text-neutral-400">Public release build for Windows, Mac & Linux.</p>
+        {publicBuilds.length > 0 ? (
+          publicBuilds.map((b) => (
+            <div key={b.id} className="border-2 border-white bg-neutral-900 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <span className="px-2 py-0.5 bg-emerald-500 text-black text-[10px] font-bold uppercase">{b.version}</span>
+                <h3 className="font-bold text-base mt-1">{b.title}</h3>
+                <p className="text-xs text-neutral-400">{b.description || 'Public release build.'}</p>
+              </div>
+              <a 
+                href={b.download_url} 
+                target="_blank" 
+                rel="noreferrer"
+                className="px-4 py-2 bg-white text-black font-bold uppercase text-xs hover:bg-neutral-300 shrink-0 border border-white"
+              >
+                Download Build ↗
+              </a>
+            </div>
+          ))
+        ) : (
+          <div className="border-2 border-white bg-neutral-900 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <span className="px-2 py-0.5 bg-emerald-500 text-black text-[10px] font-bold uppercase">STABLE RELEASE</span>
+              <h3 className="font-bold text-base mt-1">COMMISSIONERS v1.0.0</h3>
+              <p className="text-xs text-neutral-400">Public release build for Windows, Mac & Linux.</p>
+            </div>
+            <a 
+              href="https://randomunitydev.itch.io/commissioners" 
+              target="_blank" 
+              rel="noreferrer"
+              className="px-4 py-2 bg-white text-black font-bold uppercase text-xs hover:bg-neutral-300 shrink-0"
+            >
+              Download on itch.io ↗
+            </a>
           </div>
-          <a 
-            href="https://randomunitydev.itch.io/commissioners" 
-            target="_blank" 
-            rel="noreferrer"
-            className="px-4 py-2 bg-white text-black font-bold uppercase text-xs hover:bg-neutral-300 shrink-0"
-          >
-            Download on itch.io ↗
-          </a>
-        </div>
+        )}
       </section>
 
-      {/* SECTION 2: TESTER & DEV BUILDS (PROTECTED) */}
+      {/* PRIVATE TESTER BUILDS */}
       <section className="space-y-4 pt-4 border-t-2 border-neutral-800">
         <div className="flex justify-between items-center">
           <h2 className="text-lg font-bold uppercase text-emerald-400 flex items-center gap-2">
@@ -71,19 +101,27 @@ export default function DownloadBuildsPage() {
           </div>
         ) : isTesterOrAdmin ? (
           <div className="space-y-3">
-            <div className="border-2 border-emerald-500 bg-neutral-950 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <span className="px-2 py-0.5 bg-yellow-400 text-black text-[10px] font-bold uppercase">BETA BUILD</span>
-                <h3 className="font-bold text-base mt-1">COMMISSIONERS v1.1.0-ALPHA (TEST BUILD)</h3>
-                <p className="text-xs text-neutral-400">Includes experimental mod loader updates and physics tweaks.</p>
-              </div>
-              <a 
-                href="#" 
-                className="px-4 py-2 bg-emerald-400 text-black font-bold uppercase text-xs hover:bg-emerald-300 shrink-0"
-              >
-                Download (.ZIP)
-              </a>
-            </div>
+            {privateBuilds.length > 0 ? (
+              privateBuilds.map((b) => (
+                <div key={b.id} className="border-2 border-emerald-500 bg-neutral-950 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <span className="px-2 py-0.5 bg-yellow-400 text-black text-[10px] font-bold uppercase">{b.version}</span>
+                    <h3 className="font-bold text-base mt-1">{b.title}</h3>
+                    <p className="text-xs text-neutral-400">{b.description || 'Private build for testers.'}</p>
+                  </div>
+                  <a 
+                    href={b.download_url}
+                    target="_blank"
+                    rel="noreferrer" 
+                    className="px-4 py-2 bg-emerald-400 text-black font-bold uppercase text-xs hover:bg-emerald-300 shrink-0"
+                  >
+                    Download Build (.ZIP)
+                  </a>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-neutral-500 italic p-3 border border-neutral-800">No private tester builds published yet.</p>
+            )}
           </div>
         ) : (
           <div className="p-6 border-2 border-red-500 bg-neutral-950 text-center space-y-3">
@@ -100,7 +138,7 @@ export default function DownloadBuildsPage() {
               </Link>
             ) : (
               <p className="text-[11px] text-neutral-500">
-                Contact an administrator from your <Link href="/account" className="underline text-white">Account Page</Link> to request tester access.
+                Contact an administrator to request the Tester role.
               </p>
             )}
           </div>
