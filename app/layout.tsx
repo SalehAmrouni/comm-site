@@ -22,7 +22,7 @@ export default function RootLayout({
             {/* Standalone Game Logo (No text, no border, scaled up) */}
             <Link href="/" className="hover:opacity-80 transition-opacity">
               <img 
-                src="/logo.png" 
+                src="/logo.jpg" 
                 alt="COMMISSIONERS" 
                 className="h-16 w-auto object-contain"
               />
