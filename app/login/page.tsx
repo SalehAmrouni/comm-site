@@ -21,10 +21,13 @@ export default function LoginPage() {
     setMessage('Processing request...')
 
     if (isSignUp) {
-      const cleanDisplayName = displayName.trim() || email.split('@')[0]
+      // 1. Fallback to email prefix truncated safely to 20 characters max
+      const rawFallback = email.split('@')[0] || 'User'
+      const fallbackName = rawFallback.slice(0, 20)
+      const cleanDisplayName = (displayName.trim() || fallbackName).slice(0, 20)
       const finalAvatar = avatarUrl.trim() !== '' ? avatarUrl.trim() : '/nopfp.png'
 
-      // --- CHARACTER LIMIT VALIDATION ---
+      // 2. Display Name Validation
       if (cleanDisplayName.length > 20) {
         setMessage('ERROR: Display name cannot exceed 20 characters.')
         setLoading(false)
@@ -37,7 +40,7 @@ export default function LoginPage() {
         return
       }
 
-      // 1. Sign up user in auth.users
+      // 3. Register User with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -55,56 +58,50 @@ export default function LoginPage() {
         return
       }
 
-      // 2. Direct database fix: Force insert into public.profiles table
+      // 4. Upsert into public.profiles (Safely sync DB row without primary key collisions)
       if (data?.user) {
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          email: email,
-          display_name: cleanDisplayName,
-          avatar_url: finalAvatar,
-          role: 'user',
-          status: 'active',
-        })
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: data.user.id,
+              email: data.user.email,
+              display_name: cleanDisplayName,
+              avatar_url: finalAvatar,
+              role: 'user',
+            },
+            { onConflict: 'id' }
+          )
+
+        if (profileError) {
+          console.warn('Profile sync notice:', profileError.message)
+        }
       }
 
       setLoading(false)
-      setMessage('SUCCESS! Account created. Check your email for verification link or log in.')
+      setMessage('SUCCESS! Account created. You can now log in.')
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      // LOG IN EXISTING USER
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
       setLoading(false)
 
       if (error) {
         setMessage(`ERROR: ${error.message}`)
       } else {
-        setMessage('SUCCESSFULLY LOGGED IN! Redirecting...')
+        setMessage('LOGGED IN SUCCESSFULLY! Redirecting...')
         window.location.href = '/'
       }
     }
   }
 
   return (
-    <main className="max-w-md mx-auto my-8 border-4 border-white bg-black p-6 shadow-[8px_8px_0px_0px_#ffffff]">
-      {/* Tab Switcher */}
-      <div className="flex border-b-2 border-white mb-6 font-bold uppercase text-sm">
-        <button
-          type="button"
-          onClick={() => { setIsSignUp(false); setMessage(''); }}
-          className={`flex-1 py-2 text-center border-r-2 border-white ${!isSignUp ? 'bg-white text-black' : 'bg-black text-white'}`}
-        >
-          Login
-        </button>
-        <button
-          type="button"
-          onClick={() => { setIsSignUp(true); setMessage(''); }}
-          className={`flex-1 py-2 text-center ${isSignUp ? 'bg-white text-black' : 'bg-black text-white'}`}
-        >
-          Create Account
-        </button>
-      </div>
-
-      <h1 className="text-xl font-black uppercase mb-4 text-center">
-        {isSignUp ? '=== NEW USER REGISTRATION ===' : '=== USER AUTHENTICATION ==='}
+    <main className="max-w-md mx-auto my-12 p-6 border-4 border-white bg-black text-white font-mono shadow-[8px_8px_0px_0px_#ffffff]">
+      <h1 className="text-xl font-black uppercase text-center mb-6 border-b-4 border-white pb-3">
+        {isSignUp ? '[ REGISTER ACCOUNT ]' : '[ USER LOGIN ]'}
       </h1>
 
       <form onSubmit={handleAuth} className="space-y-4">
@@ -119,25 +116,23 @@ export default function LoginPage() {
               </div>
               <input
                 type="text"
-                placeholder="xX_Commissioner_Xx"
+                placeholder="e.g. SpeedRunner99"
                 value={displayName}
                 maxLength={20}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDisplayName(e.target.value)}
-                className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none focus:bg-neutral-900"
-                required={isSignUp}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="w-full p-2 bg-black border-2 border-white text-white font-mono text-xs outline-none focus:bg-neutral-900"
               />
             </div>
 
             <div>
-              <label className="block text-xs uppercase font-bold mb-1">[ Avatar Image URL (Optional) ]</label>
+              <label className="block text-xs uppercase font-bold mb-1">[ Avatar Image URL ]</label>
               <input
                 type="url"
-                placeholder="https://... or leave blank for default"
+                placeholder="https://..."
                 value={avatarUrl}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAvatarUrl(e.target.value)}
-                className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none focus:bg-neutral-900"
+                onChange={(e) => setAvatarUrl(e.target.value)}
+                className="w-full p-2 bg-black border-2 border-white text-white font-mono text-xs outline-none focus:bg-neutral-900"
               />
-              <p className="text-[10px] text-neutral-400 mt-1">* Leaving blank defaults to /nopfp.png.</p>
             </div>
           </>
         )}
@@ -146,10 +141,10 @@ export default function LoginPage() {
           <label className="block text-xs uppercase font-bold mb-1">[ Email Address ]</label>
           <input
             type="email"
-            placeholder="user@domain.com"
+            placeholder="user@example.com"
             value={email}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-            className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none focus:bg-neutral-900"
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-2 bg-black border-2 border-white text-white font-mono text-xs outline-none focus:bg-neutral-900"
             required
           />
         </div>
@@ -160,23 +155,17 @@ export default function LoginPage() {
             type="password"
             placeholder="••••••••"
             value={password}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-            className="w-full p-2 bg-black border-2 border-white text-white font-mono outline-none focus:bg-neutral-900"
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-2 bg-black border-2 border-white text-white font-mono text-xs outline-none focus:bg-neutral-900"
             required
+            minLength={6}
           />
-          {!isSignUp && (
-            <div className="text-right mt-1">
-              <Link href="/forgot-password" className="text-[10px] uppercase text-neutral-400 hover:underline font-bold">
-                Forgot Password?
-              </Link>
-            </div>
-          )}
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 bg-white text-black font-black uppercase tracking-wider border-2 border-white hover:bg-neutral-300 disabled:opacity-50 transition-none active:translate-x-0.5 active:translate-y-0.5"
+          className="w-full py-3 bg-white text-black font-black uppercase text-xs tracking-wider border-2 border-white hover:bg-neutral-300 disabled:opacity-50"
         >
           {loading ? 'PROCESSING...' : isSignUp ? 'REGISTER ACCOUNT' : 'LOG IN'}
         </button>
@@ -189,6 +178,19 @@ export default function LoginPage() {
           {message}
         </div>
       )}
+
+      <div className="mt-6 pt-4 border-t-2 border-white text-center">
+        <button
+          type="button"
+          onClick={() => {
+            setIsSignUp(!isSignUp)
+            setMessage('')
+          }}
+          className="text-xs uppercase underline font-bold hover:text-neutral-300"
+        >
+          {isSignUp ? 'Already have an account? Log In' : "Don't have an account? Register"}
+        </button>
+      </div>
     </main>
   )
 }
