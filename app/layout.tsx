@@ -19,12 +19,19 @@ export default function RootLayout({
         <header className="border-b-4 border-white bg-black p-4 sticky top-0 z-50">
           <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
             
-            {/* Logo / Brand */}
-            <Link href="/" className="text-2xl font-black tracking-widest uppercase hover:underline">
-              [ COMMISSIONERS ]
+            {/* Logo + Brand Title */}
+            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <img 
+                src="/logo.png" 
+                alt="COMMISSIONERS Logo" 
+                className="h-10 w-auto object-contain border border-white"
+              />
+              <span className="text-xl font-black tracking-widest uppercase">
+                [ COMMISSIONERS ]
+              </span>
             </Link>
 
-            {/* Navigation Tabs (From your diagram) */}
+            {/* Navigation Tabs */}
             <nav className="flex flex-wrap gap-2 text-sm uppercase font-bold">
               <Link 
                 href="/" 
@@ -61,7 +68,7 @@ export default function RootLayout({
 
         {/* Retro Footer */}
         <footer className="border-t-4 border-white bg-black p-4 text-center text-xs text-neutral-400 uppercase tracking-widest mt-auto">
-          COMMISSIONERS COMMUNITY NETWORK // EST. 2000s WEB ERA // ALL RIGHTS RESERVED
+          COMMISSIONERS HUB &copy; {new Date().getFullYear()} - ALL RIGHTS RESERVED
         </footer>
       </body>
     </html>

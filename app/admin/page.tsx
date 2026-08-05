@@ -9,13 +9,15 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'users' | 'builds' | 'mods'>('users')
 
-  // User Management state
+  // User Directory State
   const [profiles, setProfiles] = useState<any[]>([])
-  
-  // Mod Moderation state
-  const [mods, setMods] = useState<any[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedUser, setSelectedUser] = useState<any>(null)
+  const [actionReason, setActionReason] = useState('')
+  const [banDays, setBanDays] = useState('7')
 
-  // Build Creation state
+  // Mod Moderation & Builds State
+  const [mods, setMods] = useState<any[]>([])
   const [builds, setBuilds] = useState<any[]>([])
   const [buildTitle, setBuildTitle] = useState('')
   const [buildVersion, setBuildVersion] = useState('')
@@ -58,20 +60,17 @@ export default function AdminDashboardPage() {
   }
 
   async function fetchData() {
-    // Fetch user profiles
     const { data: profileData } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
     if (profileData) setProfiles(profileData)
 
-    // Fetch mods
     const { data: modData } = await supabase.from('mods').select('*').order('created_at', { ascending: false })
     if (modData) setMods(modData)
 
-    // Fetch builds
     const { data: buildData } = await supabase.from('builds').select('*').order('created_at', { ascending: false })
     if (buildData) setBuilds(buildData)
   }
 
-  // --- USER MANAGEMENT ---
+  // --- USER MODERATION & ROLE ACTIONS ---
   async function updateUserRole(userId: string, newRole: string) {
     setMessage(`Updating user role to ${newRole}...`)
     const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', userId)
@@ -83,16 +82,89 @@ export default function AdminDashboardPage() {
     }
   }
 
-  async function deleteUserRecord(userId: string) {
-    if (!confirm('Are you sure you want to delete this profile record?')) return
-    const { error } = await supabase.from('profiles').delete().eq('id', userId)
-    if (error) {
-      setMessage(`ERROR: ${error.message}`)
-    } else {
-      setMessage(`Profile record deleted.`)
+  async function warnUser(userId: string) {
+    if (!actionReason) return alert('Please enter a reason for the warning.')
+    const target = profiles.find(p => p.id === userId)
+    const newCount = (target?.warning_count || 0) + 1
+
+    const { error } = await supabase.from('profiles').update({
+      status: 'warned',
+      warning_count: newCount,
+      warning_reason: actionReason
+    }).eq('id', userId)
+
+    if (error) setMessage(`ERROR: ${error.message}`)
+    else {
+      setMessage(`Warning issued to user. Total Warnings: ${newCount}`)
+      setSelectedUser(null)
+      setActionReason('')
       fetchData()
     }
   }
+
+  async function tempBanUser(userId: string) {
+    if (!actionReason) return alert('Please enter a reason for the temporary ban.')
+    const until = new Date()
+    until.setDate(until.getDate() + parseInt(banDays))
+
+    const { error } = await supabase.from('profiles').update({
+      status: 'temp_banned',
+      ban_reason: actionReason,
+      ban_until: until.toISOString()
+    }).eq('id', userId)
+
+    if (error) setMessage(`ERROR: ${error.message}`)
+    else {
+      setMessage(`User temporarily banned for ${banDays} days.`)
+      setSelectedUser(null)
+      setActionReason('')
+      fetchData()
+    }
+  }
+
+  async function permBanUser(userId: string) {
+    if (!actionReason) return alert('Please enter a reason for the permanent ban.')
+    if (!confirm('Are you sure you want to PERMANENTLY ban this user?')) return
+
+    const { error } = await supabase.from('profiles').update({
+      status: 'perm_banned',
+      ban_reason: actionReason,
+      ban_until: null
+    }).eq('id', userId)
+
+    if (error) setMessage(`ERROR: ${error.message}`)
+    else {
+      setMessage(`User PERMANENTLY banned.`)
+      setSelectedUser(null)
+      setActionReason('')
+      fetchData()
+    }
+  }
+
+  async function liftBan(userId: string) {
+    const { error } = await supabase.from('profiles').update({
+      status: 'active',
+      ban_reason: null,
+      ban_until: null
+    }).eq('id', userId)
+
+    if (error) setMessage(`ERROR: ${error.message}`)
+    else {
+      setMessage(`User ban/warning status cleared.`)
+      fetchData()
+    }
+  }
+
+  // Filter users by search input
+  const filteredProfiles = profiles.filter((p) => {
+    const query = searchTerm.toLowerCase()
+    return (
+      (p.email && p.email.toLowerCase().includes(query)) ||
+      (p.username && p.username.toLowerCase().includes(query)) ||
+      (p.id && p.id.toLowerCase().includes(query)) ||
+      (p.role && p.role.toLowerCase().includes(query))
+    )
+  })
 
   // --- BUILD PUBLISHING ---
   async function handleAddBuild(e: React.FormEvent) {
@@ -162,7 +234,7 @@ export default function AdminDashboardPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b-4 border-white pb-4 gap-4">
         <div>
           <h1 className="text-2xl font-black uppercase">🛠️ ADMIN & DEV DASHBOARD</h1>
-          <p className="text-xs text-neutral-400">Manage user roles, publish game builds, and moderate mods.</p>
+          <p className="text-xs text-neutral-400">Manage user search, roles, warnings/bans, builds, and mods.</p>
         </div>
         <div className="px-3 py-1 bg-red-600 text-white text-xs font-bold uppercase border border-white">
           ADMIN CONFIRMED
@@ -175,7 +247,7 @@ export default function AdminDashboardPage() {
           onClick={() => setActiveTab('users')}
           className={`px-4 py-2 text-xs font-bold uppercase border-2 ${activeTab === 'users' ? 'bg-white text-black border-white' : 'bg-black text-white border-neutral-700'}`}
         >
-          👥 User Roles ({profiles.length})
+          👥 User List & Bans ({profiles.length})
         </button>
         <button
           onClick={() => setActiveTab('builds')}
@@ -197,64 +269,150 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* TAB 1: USER ROLES MANAGEMENT */}
+      {/* TAB 1: SEARCHABLE USER DIRECTORY & BAN CONTROLS */}
       {activeTab === 'users' && (
         <section className="space-y-4">
-          <h2 className="text-sm font-bold uppercase text-yellow-400">[ USER DIRECTORY & ROLE MANAGEMENT ]</h2>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <h2 className="text-sm font-bold uppercase text-yellow-400">[ SEARCH USERS & MANAGE ROLES / BANS ]</h2>
+            <input
+              type="text"
+              placeholder="🔍 Search by Email, ID, or Role..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="p-2 bg-neutral-900 border-2 border-white text-xs text-white w-full sm:w-72 outline-none"
+            />
+          </div>
+
+          {/* User List Table */}
           <div className="overflow-x-auto border-2 border-white">
             <table className="w-full text-left text-xs">
               <thead className="bg-neutral-900 border-b-2 border-white text-neutral-300">
                 <tr>
-                  <th className="p-3">EMAIL / USER ID</th>
-                  <th className="p-3">CURRENT ROLE</th>
-                  <th className="p-3">CHANGE ROLE</th>
-                  <th className="p-3 text-right">ACTION</th>
+                  <th className="p-3">USER / EMAIL</th>
+                  <th className="p-3">ROLE</th>
+                  <th className="p-3">STATUS / WARNINGS</th>
+                  <th className="p-3 text-right">MODERATION ACTIONS</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-800">
-                {profiles.map((p) => (
+                {filteredProfiles.map((p) => (
                   <tr key={p.id} className="hover:bg-neutral-900">
                     <td className="p-3 font-bold truncate max-w-[200px]">
-                      {p.email || p.id}
-                    </td>
-                    <td className="p-3">
-                      <span className={`px-2 py-0.5 text-[10px] font-bold uppercase ${
-                        p.role === 'admin' ? 'bg-red-500 text-white' : p.role === 'tester' ? 'bg-emerald-400 text-black' : 'bg-neutral-700 text-white'
-                      }`}>
-                        {p.role || 'user'}
-                      </span>
+                      <div>{p.email || p.username || 'User'}</div>
+                      <div className="text-[10px] font-normal text-neutral-500 truncate">{p.id}</div>
                     </td>
                     <td className="p-3">
                       <select
                         value={p.role || 'user'}
                         onChange={(e) => updateUserRole(p.id, e.target.value)}
-                        className="bg-black border border-white text-white p-1 text-xs font-mono outline-none cursor-pointer"
+                        className="bg-black border border-white text-white p-1 text-[11px] font-mono outline-none cursor-pointer"
                       >
                         <option value="user">User</option>
-                        <option value="tester">Tester (Private Builds)</option>
+                        <option value="tester">Tester</option>
                         <option value="admin">Admin</option>
                       </select>
                     </td>
-                    <td className="p-3 text-right">
-                      <button
-                        onClick={() => deleteUserRecord(p.id)}
-                        className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold uppercase"
-                      >
-                        Delete
-                      </button>
+                    <td className="p-3">
+                      {p.status === 'perm_banned' ? (
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-red-600 text-white uppercase">PERM BANNED</span>
+                      ) : p.status === 'temp_banned' ? (
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-orange-500 text-black uppercase">
+                          TEMP BAN ({p.ban_until ? new Date(p.ban_until).toLocaleDateString() : 'Active'})
+                        </span>
+                      ) : p.status === 'warned' ? (
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-yellow-400 text-black uppercase">
+                          WARNED ({p.warning_count || 1})
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-500 text-black uppercase">ACTIVE</span>
+                      )}
+                    </td>
+                    <td className="p-3 text-right space-x-1">
+                      {p.status && p.status !== 'active' ? (
+                        <button
+                          onClick={() => liftBan(p.id)}
+                          className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold uppercase"
+                        >
+                          UNBAN / CLEAR
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setSelectedUser(p)}
+                          className="px-2 py-1 bg-yellow-500 hover:bg-yellow-400 text-black text-[10px] font-bold uppercase"
+                        >
+                          WARN / BAN
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {/* Ban/Warn Action Box */}
+          {selectedUser && (
+            <div className="p-4 border-2 border-red-500 bg-neutral-950 space-y-3">
+              <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
+                <h3 className="text-xs font-bold uppercase text-red-500">
+                  MODERATE USER: {selectedUser.email || selectedUser.id}
+                </h3>
+                <button onClick={() => setSelectedUser(null)} className="text-xs text-neutral-400 hover:text-white">[ CANCEL ]</button>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase mb-1">Reason for Action:</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Violation of forum rules, spamming, toxic behavior..."
+                  value={actionReason}
+                  onChange={(e) => setActionReason(e.target.value)}
+                  className="w-full p-2 bg-black border border-white text-xs text-white"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  onClick={() => warnUser(selectedUser.id)}
+                  className="px-3 py-2 bg-yellow-400 text-black text-xs font-bold uppercase hover:bg-yellow-300"
+                >
+                  ⚠️ Issue Warning
+                </button>
+
+                <div className="flex items-center gap-1 bg-black border border-white px-2">
+                  <select
+                    value={banDays}
+                    onChange={(e) => setBanDays(e.target.value)}
+                    className="bg-black text-xs text-white font-mono outline-none"
+                  >
+                    <option value="1">1 Day</option>
+                    <option value="3">3 Days</option>
+                    <option value="7">7 Days</option>
+                    <option value="30">30 Days</option>
+                  </select>
+                  <button
+                    onClick={() => tempBanUser(selectedUser.id)}
+                    className="px-2 py-1 bg-orange-500 text-black text-xs font-bold uppercase hover:bg-orange-400"
+                  >
+                    ⏳ Temp Ban
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => permBanUser(selectedUser.id)}
+                  className="px-3 py-2 bg-red-600 text-white text-xs font-bold uppercase hover:bg-red-500"
+                >
+                  🚫 Perm Ban
+                </button>
+              </div>
+            </div>
+          )}
         </section>
       )}
 
       {/* TAB 2: GAME BUILDS MANAGEMENT */}
       {activeTab === 'builds' && (
         <section className="space-y-6">
-          {/* Add Build Form */}
           <form onSubmit={handleAddBuild} className="border-2 border-yellow-400 bg-neutral-950 p-4 space-y-3">
             <h2 className="text-sm font-bold uppercase text-yellow-400">[ ADD NEW GAME RELEASE BUILD ]</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -325,7 +483,6 @@ export default function AdminDashboardPage() {
             </button>
           </form>
 
-          {/* Existing Builds List */}
           <div className="space-y-3">
             <h3 className="text-xs font-bold uppercase text-neutral-400">[ ACTIVE BUILDS LIST ]</h3>
             {builds.map((b) => (
