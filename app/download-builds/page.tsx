@@ -66,21 +66,9 @@ export default function DownloadBuildsPage() {
             </div>
           ))
         ) : (
-          <div className="border-2 border-white bg-neutral-900 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <span className="px-2 py-0.5 bg-emerald-500 text-black text-[10px] font-bold uppercase">STABLE RELEASE</span>
-              <h3 className="font-bold text-base mt-1">COMMISSIONERS v1.0.0</h3>
-              <p className="text-xs text-neutral-400">Public release build for Windows, Mac & Linux.</p>
-            </div>
-            <a 
-              href="https://randomunitydev.itch.io/commissioners" 
-              target="_blank" 
-              rel="noreferrer"
-              className="px-4 py-2 bg-white text-black font-bold uppercase text-xs hover:bg-neutral-300 shrink-0"
-            >
-              Download on itch.io ↗
-            </a>
-          </div>
+          <p className="text-xs text-neutral-500 italic p-3 border border-neutral-800 bg-neutral-950">
+            No public builds published yet.
+          </p>
         )}
       </section>
 

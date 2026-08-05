@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { createClient } from '../supabaseClient'
 
 export default function ModsPage() {
@@ -48,9 +49,13 @@ export default function ModsPage() {
             <h2 className="font-bold text-lg uppercase mb-1">{mod.title}</h2>
             <p className="text-xs text-neutral-400 mb-4 line-clamp-2">{mod.description}</p>
             
-            <button className="w-full py-2 bg-white text-black font-bold uppercase hover:bg-neutral-300 mt-auto">
+            {/* PAGE LINK ADDED HERE */}
+            <Link 
+              href={`/mods/${mod.id}`}
+              className="w-full py-2 bg-white text-black text-center font-bold uppercase hover:bg-neutral-300 mt-auto block"
+            >
               VIEW MOD
-            </button>
+            </Link>
           </div>
         ))}
       </div>
