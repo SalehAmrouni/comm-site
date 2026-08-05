@@ -16,19 +16,16 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-black text-white font-mono antialiased min-h-screen flex flex-col selection:bg-white selection:text-black">
         {/* Retro Header Bar */}
-        <header className="border-b-4 border-white bg-black p-4 sticky top-0 z-50">
+        <header className="border-b-4 border-white bg-black p-3 sticky top-0 z-50">
           <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
             
-            {/* Logo + Brand Title */}
-            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            {/* Standalone Game Logo (No text, no border, scaled up) */}
+            <Link href="/" className="hover:opacity-80 transition-opacity">
               <img 
                 src="/logo.png" 
-                alt="COMMISSIONERS Logo" 
-                className="h-10 w-auto object-contain border border-white"
+                alt="COMMISSIONERS" 
+                className="h-16 w-auto object-contain"
               />
-              <span className="text-xl font-black tracking-widest uppercase">
-                [ COMMISSIONERS ]
-              </span>
             </Link>
 
             {/* Navigation Tabs */}
