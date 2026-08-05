@@ -60,7 +60,7 @@ export default function UploadModPage() {
       // 2. Get current user ID
       const { data: { user } } = await supabase.auth.getUser()
 
-      // 3. Insert mod record with mod download_url
+      // 3. Insert mod record with mod download_url and user_id
       const { error: dbError } = await supabase.from('mods').insert([
         {
           title,
@@ -117,7 +117,9 @@ export default function UploadModPage() {
             placeholder="https://drive.google.com/..., https://mediafire.com/..., or direct .zip link"
             required
           />
-          <span className="text-[10px] text-neutral-400 mt-1 block">Paste the direct download URL or cloud host link for your mod file (.zip, .rar, .7z).</span>
+          <span className="text-[10px] text-neutral-400 mt-1 block">
+            Paste the direct download URL or cloud host link for your mod file (.zip, .rar, .7z).
+          </span>
         </div>
 
         <div>
