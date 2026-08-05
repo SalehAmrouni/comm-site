@@ -60,13 +60,23 @@ export default function AdminDashboardPage() {
   }
 
   async function fetchData() {
-    const { data: profileData } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
-    if (profileData) setProfiles(profileData)
+    // 1. Fetch User Profiles safely
+    let { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
 
-    const { data: modData } = await supabase.from('mods').select('*').order('created_at', { ascending: false })
+    if (profileError) {
+      setMessage(`USER FETCH ERROR: ${profileError.message}`)
+    } else if (profileData) {
+      setProfiles(profileData)
+    }
+
+    // 2. Fetch Mods
+    const { data: modData } = await supabase.from('mods').select('*')
     if (modData) setMods(modData)
 
-    const { data: buildData } = await supabase.from('builds').select('*').order('created_at', { ascending: false })
+    // 3. Fetch Builds
+    const { data: buildData } = await supabase.from('builds').select('*')
     if (buildData) setBuilds(buildData)
   }
 
@@ -155,10 +165,13 @@ export default function AdminDashboardPage() {
     }
   }
 
-  // Filter users by search input
+  // Filter users by search input (Includes Display Name, Email, Username, ID, Role)
   const filteredProfiles = profiles.filter((p) => {
-    const query = searchTerm.toLowerCase()
+    const query = searchTerm.toLowerCase().trim()
+    if (!query) return true
+
     return (
+      (p.display_name && p.display_name.toLowerCase().includes(query)) ||
       (p.email && p.email.toLowerCase().includes(query)) ||
       (p.username && p.username.toLowerCase().includes(query)) ||
       (p.id && p.id.toLowerCase().includes(query)) ||
@@ -276,10 +289,10 @@ export default function AdminDashboardPage() {
             <h2 className="text-sm font-bold uppercase text-yellow-400">[ SEARCH USERS & MANAGE ROLES / BANS ]</h2>
             <input
               type="text"
-              placeholder="🔍 Search by Email, ID, or Role..."
+              placeholder="🔍 Search Display Name, Email, ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="p-2 bg-neutral-900 border-2 border-white text-xs text-white w-full sm:w-72 outline-none"
+              className="p-2 bg-neutral-900 border-2 border-white text-xs text-white w-full sm:w-72 outline-none focus:border-yellow-400"
             />
           </div>
 
@@ -288,64 +301,73 @@ export default function AdminDashboardPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-neutral-900 border-b-2 border-white text-neutral-300">
                 <tr>
-                  <th className="p-3">USER / EMAIL</th>
+                  <th className="p-3">USER / DISPLAY NAME</th>
                   <th className="p-3">ROLE</th>
                   <th className="p-3">STATUS / WARNINGS</th>
                   <th className="p-3 text-right">MODERATION ACTIONS</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-800">
-                {filteredProfiles.map((p) => (
-                  <tr key={p.id} className="hover:bg-neutral-900">
-                    <td className="p-3 font-bold truncate max-w-[200px]">
-                      <div>{p.email || p.username || 'User'}</div>
-                      <div className="text-[10px] font-normal text-neutral-500 truncate">{p.id}</div>
-                    </td>
-                    <td className="p-3">
-                      <select
-                        value={p.role || 'user'}
-                        onChange={(e) => updateUserRole(p.id, e.target.value)}
-                        className="bg-black border border-white text-white p-1 text-[11px] font-mono outline-none cursor-pointer"
-                      >
-                        <option value="user">User</option>
-                        <option value="tester">Tester</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </td>
-                    <td className="p-3">
-                      {p.status === 'perm_banned' ? (
-                        <span className="px-2 py-0.5 text-[10px] font-bold bg-red-600 text-white uppercase">PERM BANNED</span>
-                      ) : p.status === 'temp_banned' ? (
-                        <span className="px-2 py-0.5 text-[10px] font-bold bg-orange-500 text-black uppercase">
-                          TEMP BAN ({p.ban_until ? new Date(p.ban_until).toLocaleDateString() : 'Active'})
-                        </span>
-                      ) : p.status === 'warned' ? (
-                        <span className="px-2 py-0.5 text-[10px] font-bold bg-yellow-400 text-black uppercase">
-                          WARNED ({p.warning_count || 1})
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-500 text-black uppercase">ACTIVE</span>
-                      )}
-                    </td>
-                    <td className="p-3 text-right space-x-1">
-                      {p.status && p.status !== 'active' ? (
-                        <button
-                          onClick={() => liftBan(p.id)}
-                          className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold uppercase"
+                {filteredProfiles.length > 0 ? (
+                  filteredProfiles.map((p) => (
+                    <tr key={p.id} className="hover:bg-neutral-900">
+                      <td className="p-3 font-bold truncate max-w-[220px]">
+                        <div className="text-sm text-yellow-400">{p.display_name || p.username || 'No Name'}</div>
+                        <div className="text-[11px] font-normal text-neutral-300">{p.email || 'No email stored'}</div>
+                        <div className="text-[9px] font-normal text-neutral-500 truncate">{p.id}</div>
+                      </td>
+                      <td className="p-3">
+                        <select
+                          value={p.role || 'user'}
+                          onChange={(e) => updateUserRole(p.id, e.target.value)}
+                          className="bg-black border border-white text-white p-1 text-[11px] font-mono outline-none cursor-pointer"
                         >
-                          UNBAN / CLEAR
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => setSelectedUser(p)}
-                          className="px-2 py-1 bg-yellow-500 hover:bg-yellow-400 text-black text-[10px] font-bold uppercase"
-                        >
-                          WARN / BAN
-                        </button>
-                      )}
+                          <option value="user">User</option>
+                          <option value="tester">Tester</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </td>
+                      <td className="p-3">
+                        {p.status === 'perm_banned' ? (
+                          <span className="px-2 py-0.5 text-[10px] font-bold bg-red-600 text-white uppercase">PERM BANNED</span>
+                        ) : p.status === 'temp_banned' ? (
+                          <span className="px-2 py-0.5 text-[10px] font-bold bg-orange-500 text-black uppercase">
+                            TEMP BAN ({p.ban_until ? new Date(p.ban_until).toLocaleDateString() : 'Active'})
+                          </span>
+                        ) : p.status === 'warned' ? (
+                          <span className="px-2 py-0.5 text-[10px] font-bold bg-yellow-400 text-black uppercase">
+                            WARNED ({p.warning_count || 1})
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-500 text-black uppercase">ACTIVE</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-right space-x-1">
+                        {p.status && p.status !== 'active' ? (
+                          <button
+                            onClick={() => liftBan(p.id)}
+                            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold uppercase"
+                          >
+                            UNBAN / CLEAR
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setSelectedUser(p)}
+                            className="px-2 py-1 bg-yellow-500 hover:bg-yellow-400 text-black text-[10px] font-bold uppercase"
+                          >
+                            WARN / BAN
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="p-6 text-center text-neutral-400 uppercase italic">
+                      [ NO USERS FOUND MATCHING YOUR SEARCH ]
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -355,7 +377,7 @@ export default function AdminDashboardPage() {
             <div className="p-4 border-2 border-red-500 bg-neutral-950 space-y-3">
               <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
                 <h3 className="text-xs font-bold uppercase text-red-500">
-                  MODERATE USER: {selectedUser.email || selectedUser.id}
+                  MODERATE USER: {selectedUser.display_name || selectedUser.email || selectedUser.id}
                 </h3>
                 <button onClick={() => setSelectedUser(null)} className="text-xs text-neutral-400 hover:text-white">[ CANCEL ]</button>
               </div>
