@@ -24,7 +24,7 @@ export default function RootLayout({
               <img 
                 src="/logo.png" 
                 alt="COMMISSIONERS" 
-                className="h-16 w-auto object-contain"
+                className="h-36 w-auto object-contain"
               />
             </Link>
 
