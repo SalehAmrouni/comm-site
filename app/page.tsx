@@ -6,12 +6,14 @@ import { createClient } from './supabaseClient'
 
 export default function Home() {
   const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
   useEffect(() => {
     async function getUser() {
       const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user || null)
+      setLoading(false)
     }
     getUser()
   }, [supabase])
@@ -30,38 +32,49 @@ export default function Home() {
             COMMISSIONERS
           </h1>
           <p className="text-sm text-neutral-300 leading-relaxed">
-            Welcome to the official network. Download community mods, post in the retro discussion boards, share your creations with custom preview images, and manage your user account.
+            Welcome to the official network. Access public & tester game builds, download community mods, post in discussion boards, and manage your account.
           </p>
           
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-3 pt-2">
-            <a 
-              href="https://randomunitydev.itch.io/commissioners" 
-              target="_blank" 
-              rel="noreferrer"
+            <Link 
+              href="/download-builds" 
               className="px-5 py-3 bg-white text-black border-2 border-white font-black uppercase text-xs hover:bg-neutral-300"
             >
-              Play on itch.io ↗
-            </a>
+              🎮 Download Builds
+            </Link>
             <Link 
               href="/mods" 
               className="px-5 py-3 bg-black text-white border-2 border-white font-black uppercase text-xs hover:bg-white hover:text-black"
             >
               Browse Mods
             </Link>
-            <Link 
-              href="/upload-mod" 
-              className="px-5 py-3 bg-yellow-400 text-black border-2 border-white font-black uppercase text-xs hover:bg-yellow-300"
-            >
-              + Upload Mod
-            </Link>
+
+            {/* CONDITIONAL MOD UPLOAD BUTTON (Requires Account) */}
+            {user ? (
+              <Link 
+                href="/upload-mod" 
+                className="px-5 py-3 bg-yellow-400 text-black border-2 border-white font-black uppercase text-xs hover:bg-yellow-300"
+              >
+                + Upload Mod
+              </Link>
+            ) : (
+              <Link 
+                href="/login" 
+                className="px-5 py-3 bg-neutral-800 text-neutral-400 border-2 border-neutral-600 font-bold uppercase text-xs hover:bg-neutral-700 hover:text-white"
+              >
+                🔒 Upload Mod (Login Required)
+              </Link>
+            )}
           </div>
         </div>
 
         {/* User Card / Profile Box */}
         <div className="w-full md:w-64 border-2 border-white bg-neutral-950 p-4 text-center space-y-3 shrink-0">
           <h3 className="text-xs uppercase font-bold border-b-2 border-white pb-2">:: USER PROFILE ::</h3>
-          {user ? (
+          {loading ? (
+            <p className="text-xs text-neutral-500 py-4">[ LOADING... ]</p>
+          ) : user ? (
             <div className="space-y-2">
               <img 
                 src={avatarSrc} 
@@ -72,15 +85,15 @@ export default function Home() {
               <p className="text-sm font-bold uppercase truncate">{user.user_metadata?.display_name || user.email.split('@')[0]}</p>
               <p className="text-[10px] text-emerald-400 font-bold">[ ONLINE ]</p>
               <Link 
-                href="/profile"
+                href="/account"
                 className="inline-block px-3 py-1 bg-white text-black text-xs font-bold uppercase border border-white hover:bg-neutral-300"
               >
-                Account Settings
+                Account Profile
               </Link>
             </div>
           ) : (
             <div className="space-y-3 py-2">
-              <p className="text-xs text-neutral-400">YOU ARE CURRENTLY VISITING AS GUEST.</p>
+              <p className="text-xs text-neutral-400">VISITING AS GUEST.</p>
               <Link 
                 href="/login" 
                 className="inline-block w-full py-2 bg-white text-black font-bold uppercase text-xs border border-white hover:bg-neutral-300"
@@ -103,14 +116,14 @@ export default function Home() {
           <div className="space-y-4 text-xs">
             <article className="border-b border-neutral-800 pb-3">
               <span className="text-neutral-500 font-bold">[AUG 04]</span>
-              <h3 className="text-sm font-bold uppercase mt-1 text-yellow-400">MOD IMAGE UPLOADS ENABLED</h3>
-              <p className="text-neutral-300 mt-1">Creators can now attach preview images when uploading mods to the archive via direct file upload or external URL link.</p>
+              <h3 className="text-sm font-bold uppercase mt-1 text-yellow-400">PUBLIC & TESTER BUILDS LIVE</h3>
+              <p className="text-neutral-300 mt-1">Download official public releases directly or check out early experimental builds if you have the Tester role.</p>
             </article>
 
             <article className="border-b border-neutral-800 pb-3">
               <span className="text-neutral-500 font-bold">[AUG 04]</span>
-              <h3 className="text-sm font-bold uppercase mt-1">PASSWORD RECOVERY ONLINE</h3>
-              <p className="text-neutral-300 mt-1">Added automated password reset links via email support and secure password updates in user account settings.</p>
+              <h3 className="text-sm font-bold uppercase mt-1">MOD IMAGE & AUTH CHECKS</h3>
+              <p className="text-neutral-300 mt-1">Registered users can now post mods with image attachments. Account verification is required for uploading.</p>
             </article>
 
             <article className="pb-1">
@@ -128,14 +141,25 @@ export default function Home() {
           </h2>
           <ul className="space-y-3 text-sm font-bold uppercase">
             <li>
-              <Link href="/mods" className="block p-3 border-2 border-white hover:bg-white hover:text-black transition-colors">
-                → MOD ARCHIVE
+              <Link href="/download-builds" className="block p-3 border-2 border-white bg-neutral-900 hover:bg-white hover:text-black transition-colors">
+                🎮 GAME BUILDS (PUBLIC & TESTER)
               </Link>
             </li>
             <li>
-              <Link href="/upload-mod" className="block p-3 border-2 border-yellow-400 bg-neutral-900 text-yellow-400 hover:bg-yellow-400 hover:text-black transition-colors">
-                + UPLOAD NEW MOD
+              <Link href="/mods" className="block p-3 border-2 border-white hover:bg-white hover:text-black transition-colors">
+                → BROWSE MOD ARCHIVE
               </Link>
+            </li>
+            <li>
+              {user ? (
+                <Link href="/upload-mod" className="block p-3 border-2 border-yellow-400 bg-neutral-900 text-yellow-400 hover:bg-yellow-400 hover:text-black transition-colors">
+                  + UPLOAD NEW MOD
+                </Link>
+              ) : (
+                <Link href="/login" className="block p-3 border-2 border-neutral-700 bg-neutral-950 text-neutral-500 hover:border-white hover:text-white transition-colors">
+                  🔒 UPLOAD NEW MOD (LOGIN REQUIRED)
+                </Link>
+              )}
             </li>
             <li>
               <Link href="/forum" className="block p-3 border-2 border-white hover:bg-white hover:text-black transition-colors">
@@ -143,8 +167,8 @@ export default function Home() {
               </Link>
             </li>
             <li>
-              <Link href="/profile" className="block p-3 border-2 border-white hover:bg-white hover:text-black transition-colors">
-                → USER PROFILE & SETTINGS
+              <Link href="/account" className="block p-3 border-2 border-white hover:bg-white hover:text-black transition-colors">
+                → USER ACCOUNT & ROLES
               </Link>
             </li>
           </ul>

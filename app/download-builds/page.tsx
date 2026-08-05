@@ -2,54 +2,110 @@
 
 import React, { useEffect, useState } from 'react'
 import { createClient } from '../supabaseClient'
+import Link from 'next/link'
 
 export default function DownloadBuildsPage() {
-  const [authorized, setAuthorized] = useState<boolean | null>(null)
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
   useEffect(() => {
-    async function checkAccess() {
+    async function checkRole() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setAuthorized(false)
-        return
-      }
-
-      const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-      if (data?.role === 'tester' || data?.role === 'admin') {
-        setAuthorized(true)
+      if (user) {
+        const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+        setUserRole(data?.role || 'user')
       } else {
-        setAuthorized(false)
+        setUserRole('guest')
       }
+      setLoading(false)
     }
-    checkAccess()
-  }, [])
+    checkRole()
+  }, [supabase])
 
-  if (authorized === null) return <div className="p-8 text-white font-mono">[ VERIFYING ACCESS... ]</div>
-
-  if (!authorized) {
-    return (
-      <main className="max-w-md mx-auto my-12 p-6 border-4 border-red-500 bg-black text-red-500 text-center font-mono uppercase">
-        <h1 className="text-xl font-bold mb-2">[ ACCESS DENIED ]</h1>
-        <p className="text-xs text-white">This page requires the TESTER role. Contact an administrator to get access.</p>
-      </main>
-    )
-  }
+  const isTesterOrAdmin = userRole === 'tester' || userRole === 'admin'
 
   return (
-    <main className="max-w-4xl mx-auto my-8 p-6 border-4 border-white bg-black text-white font-mono">
-      <h1 className="text-2xl font-black mb-6 uppercase">[ DOWNLOAD TEST BUILDS ]</h1>
-      <div className="space-y-4">
-        <div className="p-4 border-2 border-white bg-neutral-900 flex justify-between items-center">
+    <main className="max-w-4xl mx-auto my-8 p-6 border-4 border-white bg-black text-white font-mono shadow-[8px_8px_0px_0px_#ffffff] space-y-8">
+      <div>
+        <h1 className="text-2xl font-black uppercase border-b-4 border-white pb-3">[ GAME BUILDS & DOWNLOADS ]</h1>
+        <p className="text-xs text-neutral-400 mt-2">Download official public releases or test experimental builds.</p>
+      </div>
+
+      {/* SECTION 1: PUBLIC BUILDS (ACCESSIBLE TO ALL) */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-bold uppercase text-yellow-400 flex items-center gap-2">
+          🌐 PUBLIC STABLE RELEASES
+        </h2>
+        <div className="border-2 border-white bg-neutral-900 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h3 className="font-bold">v0.4.2-ALPHA BUILD</h3>
-            <p className="text-xs text-neutral-400">Uploaded: 2 hours ago</p>
+            <span className="px-2 py-0.5 bg-emerald-500 text-black text-[10px] font-bold uppercase">STABLE RELEASE</span>
+            <h3 className="font-bold text-base mt-1">COMMISSIONERS v1.0.0</h3>
+            <p className="text-xs text-neutral-400">Public release build for Windows, Mac & Linux.</p>
           </div>
-          <a href="#" className="px-4 py-2 bg-white text-black font-bold uppercase hover:bg-neutral-300">
-            DOWNLOAD (.ZIP)
+          <a 
+            href="https://randomunitydev.itch.io/commissioners" 
+            target="_blank" 
+            rel="noreferrer"
+            className="px-4 py-2 bg-white text-black font-bold uppercase text-xs hover:bg-neutral-300 shrink-0"
+          >
+            Download on itch.io ↗
           </a>
         </div>
-      </div>
+      </section>
+
+      {/* SECTION 2: TESTER & DEV BUILDS (PROTECTED) */}
+      <section className="space-y-4 pt-4 border-t-2 border-neutral-800">
+        <div className="flex justify-between items-center">
+          <h2 className="text-lg font-bold uppercase text-emerald-400 flex items-center gap-2">
+            🧪 TESTER & EXPERIMENTAL BUILDS
+          </h2>
+          <span className="text-[10px] uppercase px-2 py-1 border border-neutral-700 bg-neutral-900 text-neutral-400">
+            YOUR ROLE: {loading ? 'CHECKING...' : userRole?.toUpperCase()}
+          </span>
+        </div>
+
+        {loading ? (
+          <div className="p-4 border-2 border-dashed border-neutral-700 bg-neutral-950 text-xs text-neutral-400 text-center">
+            VERIFYING PERMISSIONS...
+          </div>
+        ) : isTesterOrAdmin ? (
+          <div className="space-y-3">
+            <div className="border-2 border-emerald-500 bg-neutral-950 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <span className="px-2 py-0.5 bg-yellow-400 text-black text-[10px] font-bold uppercase">BETA BUILD</span>
+                <h3 className="font-bold text-base mt-1">COMMISSIONERS v1.1.0-ALPHA (TEST BUILD)</h3>
+                <p className="text-xs text-neutral-400">Includes experimental mod loader updates and physics tweaks.</p>
+              </div>
+              <a 
+                href="#" 
+                className="px-4 py-2 bg-emerald-400 text-black font-bold uppercase text-xs hover:bg-emerald-300 shrink-0"
+              >
+                Download (.ZIP)
+              </a>
+            </div>
+          </div>
+        ) : (
+          <div className="p-6 border-2 border-red-500 bg-neutral-950 text-center space-y-3">
+            <h3 className="text-red-400 text-sm font-bold uppercase">[ TESTER ACCESS REQUIRED ]</h3>
+            <p className="text-xs text-neutral-400 max-w-lg mx-auto">
+              Experimental builds are restricted to accounts with the <strong className="text-white">TESTER</strong> or <strong className="text-white">ADMIN</strong> role.
+            </p>
+            {userRole === 'guest' ? (
+              <Link 
+                href="/login" 
+                className="inline-block px-4 py-2 bg-white text-black text-xs font-bold uppercase hover:bg-neutral-300"
+              >
+                Log In To Check Access
+              </Link>
+            ) : (
+              <p className="text-[11px] text-neutral-500">
+                Contact an administrator from your <Link href="/account" className="underline text-white">Account Page</Link> to request tester access.
+              </p>
+            )}
+          </div>
+        )}
+      </section>
     </main>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
-import { createClient } from '../supabaseClient' // Fixed import path for upload-mod folder
+import React, { useState, useEffect } from 'react'
+import { createClient } from '../supabaseClient'
 import { useRouter } from 'next/navigation'
 
 export default function UploadModPage() {
@@ -11,9 +11,23 @@ export default function UploadModPage() {
   const [imageUrlInput, setImageUrlInput] = useState('')
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState('')
+  const [checkingAuth, setCheckingAuth] = useState(true)
 
   const router = useRouter()
   const supabase = createClient()
+
+  // STEP 2 AUTH GUARD: Block guests and redirect to login if not signed in
+  useEffect(() => {
+    async function checkUser() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+      } else {
+        setCheckingAuth(false)
+      }
+    }
+    checkUser()
+  }, [supabase, router])
 
   async function handleCreateMod(e: React.FormEvent) {
     e.preventDefault()
@@ -60,6 +74,15 @@ export default function UploadModPage() {
     } finally {
       setUploading(false)
     }
+  }
+
+  // Show quick loading screen while checking auth session
+  if (checkingAuth) {
+    return (
+      <main className="max-w-xl mx-auto my-12 p-6 border-4 border-white bg-black text-white font-mono shadow-[8px_8px_0px_0px_#ffffff] text-center">
+        <p className="text-xs uppercase font-bold animate-pulse">[ VERIFYING ACCOUNT ACCESS... ]</p>
+      </main>
+    )
   }
 
   return (
