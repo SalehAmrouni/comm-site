@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/supabaseClient' // Adjust path if needed (e.g. '../../supabaseClient')
+import { createClient } from '../../supabaseClient'
 import Link from 'next/link'
 
 export default function ModDetailPage() {
