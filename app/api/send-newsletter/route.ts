@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
-import { createClient } from '@/supabaseClient' // Adjust path if your supabaseClient is elsewhere
-
+import { createClient } from '../../supabaseClient'
 export async function POST(req: Request) {
   try {
     const { title, htmlContent } = await req.json()
