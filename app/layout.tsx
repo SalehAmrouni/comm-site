@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import './globals.css'
-import BanChecker from './components/BanChecker' // Import BanChecker
+import BanChecker from './components/BanChecker'
 
 export const metadata: Metadata = {
   title: 'COMMISSIONERS - Official Community Hub',
@@ -22,7 +22,7 @@ export default function RootLayout({
           <header className="border-b-4 border-white bg-black p-3 sticky top-0 z-50">
             <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
               
-              {/* Standalone Game Logo (No text, no border, scaled up) */}
+              {/* Standalone Game Logo */}
               <Link href="/" className="hover:opacity-80 transition-opacity">
                 <img 
                   src="/logo.png" 
@@ -38,6 +38,12 @@ export default function RootLayout({
                   className="px-4 py-2 bg-black border-2 border-white hover:bg-white hover:text-black transition-none active:translate-x-0.5 active:translate-y-0.5"
                 >
                   Home
+                </Link>
+                <Link 
+                  href="/news" 
+                  className="px-4 py-2 bg-black border-2 border-white hover:bg-white hover:text-black transition-none active:translate-x-0.5 active:translate-y-0.5"
+                >
+                  News
                 </Link>
                 <Link 
                   href="/mods" 
