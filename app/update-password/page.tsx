@@ -14,21 +14,36 @@ export default function UpdatePasswordPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    // 1. Listen for recovery auth event from the email link
+    async function initSession() {
+      // 1. Check if PKCE code is present in URL query parameters
+      const searchParams = new URLSearchParams(window.location.search)
+      const code = searchParams.get('code')
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
+        if (!error) {
+          setHasSession(true)
+          return
+        }
+      }
+
+      // 2. Fallback check for existing session
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        setHasSession(true)
+      }
+    }
+
+    initSession()
+
+    // 3. Listen for Auth State Changes (Recovery flow)
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (event === 'PASSWORD_RECOVERY' || session) {
           setHasSession(true)
         }
       }
     )
-
-    // 2. Check if a valid session is already active
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setHasSession(true)
-      }
-    })
 
     return () => {
       authListener.subscription.unsubscribe()
@@ -67,10 +82,10 @@ export default function UpdatePasswordPage() {
 
       {!hasSession ? (
         <div className="p-4 border-2 border-yellow-500 bg-neutral-900 text-xs font-bold text-yellow-400 text-center uppercase">
-          WAITING FOR AUTH SESSION...
+          VERIFYING RECOVERY SESSION...
           <br />
           <span className="text-[10px] text-neutral-400 font-normal normal-case block mt-2">
-            Please make sure you arrived here by clicking the reset link sent to your email.
+            If this message stays, ensure you opened the exact link from your reset email.
           </span>
         </div>
       ) : (
