@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
-import { createClient } from '../../../supabaseClient' // Adjust relative path if needed
+import { createClient } from '../../supabaseClient' // Adjust relative path if needed
 
 // 1. Force Next.js to use Node.js runtime (Nodemailer breaks on Edge)
 export const runtime = 'nodejs'
