@@ -1,18 +1,19 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { createClient } from '../../supabaseClient'
 import Link from 'next/link'
+import ModInspectorModal from '../../components/ModInspectorModal' // Import the modal
 
 export default function ModDetailPage() {
   const params = useParams()
-  const router = useRouter()
   const modId = params.id
 
   const [mod, setMod] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false) // Inspector Modal State
 
   const supabase = createClient()
 
@@ -68,9 +69,21 @@ export default function ModDetailPage() {
       </div>
 
       {/* Mod Title */}
-      <h1 className="text-2xl font-black uppercase mb-4 border-b-2 border-white pb-2">
+      <h1 className="text-2xl font-black uppercase mb-2 border-b-2 border-white pb-2">
         {mod.title}
       </h1>
+
+      {/* Author & Timestamp */}
+      <div className="flex flex-wrap items-center justify-between text-xs font-bold uppercase text-neutral-400 mb-6 gap-2 border-b border-neutral-800 pb-3">
+        <span>
+          CREATED BY: <span className="text-yellow-400">@{mod.author_name || 'UNKNOWN'}</span>
+        </span>
+        {mod.created_at && (
+          <span>
+            UPLOADED: <span className="text-white">{new Date(mod.created_at).toLocaleDateString()}</span>
+          </span>
+        )}
+      </div>
 
       {/* Preview Image */}
       {mod.image_url ? (
@@ -95,21 +108,39 @@ export default function ModDetailPage() {
         </div>
       </div>
 
-      {/* Download Action */}
+      {/* Action Buttons: Download + Inspector */}
       {downloadLink ? (
-        <a
-          href={downloadLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full py-4 bg-white text-black text-center font-black uppercase text-sm border-2 border-white hover:bg-neutral-300 shadow-[4px_4px_0px_0px_#888888] transition-transform active:translate-x-1 active:translate-y-1"
-        >
-          DOWNLOAD MOD FILE 💾
-        </a>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <a
+            href={downloadLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 py-4 bg-white text-black text-center font-black uppercase text-sm border-2 border-white hover:bg-neutral-300 shadow-[4px_4px_0px_0px_#888888] transition-transform active:translate-x-1 active:translate-y-1"
+          >
+            DOWNLOAD MOD FILE 💾
+          </a>
+
+          {/* "TAKE A PEEK? 🔍" BUTTON */}
+          <button
+            onClick={() => setIsInspectorOpen(true)}
+            className="py-4 px-6 bg-yellow-400 text-black font-black uppercase text-sm border-2 border-white hover:bg-yellow-300 shadow-[4px_4px_0px_0px_#ffffff] transition-transform active:translate-x-1 active:translate-y-1 shrink-0"
+          >
+            TAKE A PEEK? 🔍
+          </button>
+        </div>
       ) : (
         <div className="p-3 border-2 border-red-500 bg-neutral-900 text-red-400 text-xs text-center font-bold uppercase">
           NO DOWNLOAD LINK AVAILABLE FOR THIS MOD
         </div>
       )}
+
+      {/* Inspector Modal */}
+      <ModInspectorModal
+        isOpen={isInspectorOpen}
+        onClose={() => setIsInspectorOpen(false)}
+        fileUrl={downloadLink}
+        modTitle={mod.title}
+      />
     </main>
   )
 }
