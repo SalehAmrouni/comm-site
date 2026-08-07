@@ -290,40 +290,7 @@ export default function NewsPage() {
         )}
       </div>
 
-      {/* NEWSLETTER SUBSCRIPTION BAR */}
-      <div className="border-4 border-white bg-black p-4 shadow-[6px_6px_0px_0px_#ffffff] space-y-3">
-        <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-          <div>
-            <h2 className="text-sm font-black uppercase text-yellow-400">[ SUBSCRIBE TO NEWSLETTER ]</h2>
-            <p className="text-xs text-neutral-300 uppercase">
-              Get game update announcements and dev logs delivered directly to your inbox.
-            </p>
-          </div>
-
-          <form onSubmit={handleNewsletterSubscribe} className="flex flex-col sm:flex-row gap-2">
-            <input
-              type="email"
-              placeholder="YOUR.EMAIL@DOMAIN.COM"
-              value={newsletterEmail}
-              onChange={(e) => setNewsletterEmail(e.target.value)}
-              className="p-2 bg-black border-2 border-white text-white font-mono text-xs outline-none focus:bg-neutral-900 w-full sm:w-64"
-              required
-            />
-            <button
-              type="submit"
-              className="px-4 py-2 bg-white text-black font-black uppercase text-xs border-2 border-white hover:bg-neutral-300 shrink-0"
-            >
-              SUBSCRIBE
-            </button>
-          </form>
-        </div>
-
-        {newsletterStatus && (
-          <p className={`text-xs font-bold uppercase ${newsletterStatus.startsWith('ERROR') ? 'text-red-400' : 'text-yellow-400'}`}>
-            {newsletterStatus}
-          </p>
-        )}
-      </div>
+      
 
       {/* MOD / ADMIN CREATE POST FORM */}
       {showCreateForm && isModOrAdmin && (
