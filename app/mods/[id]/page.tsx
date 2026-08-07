@@ -5,22 +5,31 @@ import { useParams } from 'next/navigation'
 import { createClient } from '../../supabaseClient'
 import Link from 'next/link'
 import ModInspectorModal from '../../components/ModInspectorModal'
+import EditModModal from '../../components/EditModModal'
 
 export default function ModDetailPage() {
   const params = useParams()
   const modId = params.id
 
   const [mod, setMod] = useState<any>(null)
+  const [currentUser, setCurrentUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
   const [isInspectorOpen, setIsInspectorOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
 
   const supabase = createClient()
 
   useEffect(() => {
-    async function fetchMod() {
+    async function loadData() {
       if (!modId) return
 
+      // 1. Get current logged in user
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUser(user)
+
+      // 2. Fetch mod details
       const { data, error } = await supabase
         .from('mods')
         .select('*')
@@ -35,7 +44,7 @@ export default function ModDetailPage() {
       setLoading(false)
     }
 
-    fetchMod()
+    loadData()
   }, [modId])
 
   if (loading) {
@@ -58,30 +67,35 @@ export default function ModDetailPage() {
   }
 
   const downloadLink = mod.download_url || mod.file_url
+  
+  // Ownership check: user ID matches mod's author_id or user_id
+  const isOwner = currentUser && (currentUser.id === mod.author_id || currentUser.id === mod.user_id)
 
   return (
     <main className="max-w-3xl mx-auto my-8 p-6 border-4 border-white bg-black text-white font-mono shadow-[8px_8px_0px_0px_#ffffff]">
-      <div className="mb-6">
+      {/* Top Header & Navigation */}
+      <div className="flex justify-between items-center mb-6">
         <Link href="/mods" className="text-xs uppercase font-bold text-neutral-400 hover:text-white underline">
           &lt; BACK TO MODS LIST
         </Link>
-      </div>
 
-      <h1 className="text-2xl font-black uppercase mb-2 border-b-2 border-white pb-2">
-        {mod.title}
-      </h1>
-
-      <div className="flex flex-wrap items-center justify-between text-xs font-bold uppercase text-neutral-400 mb-6 gap-2 border-b border-neutral-800 pb-3">
-        <span>
-          CREATED BY: <span className="text-yellow-400">@{mod.author_name || 'UNKNOWN'}</span>
-        </span>
-        {mod.created_at && (
-          <span>
-            UPLOADED: <span className="text-white">{new Date(mod.created_at).toLocaleDateString()}</span>
-          </span>
+        {/* OWNER EDIT BUTTON */}
+        {isOwner && (
+          <button
+            onClick={() => setIsEditOpen(true)}
+            className="px-3 py-1 bg-yellow-400 text-black font-black text-xs uppercase border-2 border-white hover:bg-yellow-300 shadow-[3px_3px_0px_0px_#ffffff]"
+          >
+            EDIT MOD ✏️
+          </button>
         )}
       </div>
 
+      {/* Mod Title */}
+      <h1 className="text-2xl font-black uppercase mb-4 border-b-2 border-white pb-2">
+        {mod.title}
+      </h1>
+
+      {/* Preview Image */}
       {mod.image_url ? (
         <div className="mb-6 border-2 border-white overflow-hidden bg-neutral-900">
           <img
@@ -96,6 +110,7 @@ export default function ModDetailPage() {
         </div>
       )}
 
+      {/* Description Section */}
       <div className="mb-6">
         <h2 className="text-xs font-bold uppercase text-yellow-400 mb-2">[ DESCRIPTION ]</h2>
         <div className="p-4 border-2 border-neutral-700 bg-neutral-900 text-sm whitespace-pre-wrap leading-relaxed">
@@ -103,6 +118,7 @@ export default function ModDetailPage() {
         </div>
       </div>
 
+      {/* Download Action & Inspector */}
       {downloadLink ? (
         <div className="flex flex-col sm:flex-row gap-3">
           <a
@@ -127,12 +143,23 @@ export default function ModDetailPage() {
         </div>
       )}
 
+      {/* Inspector Modal */}
       <ModInspectorModal
         isOpen={isInspectorOpen}
         onClose={() => setIsInspectorOpen(false)}
         fileUrl={downloadLink}
         modTitle={mod.title}
       />
+
+      {/* Owner Edit Modal */}
+      {isOwner && (
+        <EditModModal
+          isOpen={isEditOpen}
+          onClose={() => setIsEditOpen(false)}
+          mod={mod}
+          onSuccess={(updatedMod) => setMod(updatedMod)}
+        />
+      )}
     </main>
   )
 }
