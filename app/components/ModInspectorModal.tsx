@@ -45,13 +45,13 @@ export default function ModInspectorModal({
       setFileContent(null)
 
       try {
-        // Fetch via server-side API proxy to bypass CORS and resolve links
+        // Send link to crawler endpoint
         const proxyUrl = `/api/inspect-mod?url=${encodeURIComponent(fileUrl)}`
         const res = await fetch(proxyUrl)
 
         if (!res.ok) {
           const errData = await res.json().catch(() => null)
-          throw new Error(errData?.error || `Server responded with status ${res.status}`)
+          throw new Error(errData?.error || `Server responded with HTTP ${res.status}`)
         }
 
         const arrayBuffer = await res.arrayBuffer()
@@ -76,9 +76,7 @@ export default function ModInspectorModal({
         setFiles(fileList)
       } catch (err: any) {
         console.error('Inspector error:', err)
-        setError(
-          err.message || 'UNABLE TO PEEK INSIDE THIS MOD. Ensure the URL is a direct file link.'
-        )
+        setError(err.message || 'UNABLE TO PEEK INSIDE THIS MOD ARCHIVE.')
       } finally {
         setLoading(false)
       }
@@ -144,7 +142,8 @@ export default function ModInspectorModal({
         {/* Loading / Error States */}
         {loading && (
           <div className="py-20 text-center animate-pulse">
-            <p className="text-sm font-bold uppercase">[ FETCHING ARCHIVE & UNPACKING FILES... ]</p>
+            <p className="text-sm font-bold uppercase">[ CRAWLING LINK & UNPACKING ARCHIVE... ]</p>
+            <p className="text-xs text-neutral-400 mt-2">[ FOLLOWING GOOGLE DRIVE / FILE HOST REDIRECTS ]</p>
           </div>
         )}
 
@@ -154,11 +153,11 @@ export default function ModInspectorModal({
           </div>
         )}
 
-        {/* File Browser */}
+        {/* Unpacked File Explorer */}
         {!loading && !error && (
           <div className="flex flex-col flex-1 overflow-hidden gap-4">
             
-            {/* Risk Indicator */}
+            {/* Risk Indicator Banner */}
             {suspiciousCount > 0 ? (
               <div className="p-2 border-2 border-red-500 bg-red-950/40 text-red-400 text-xs font-bold uppercase flex items-center justify-between">
                 <span>⚠️ WARNING: FOUND {suspiciousCount} EXECUTABLE / POTENTIALLY RISKY FILE(S)</span>
@@ -211,7 +210,7 @@ export default function ModInspectorModal({
                 )}
               </div>
 
-              {/* Code Preview */}
+              {/* Code/Text Viewer */}
               <div className="border-2 border-white bg-black p-3 overflow-y-auto max-h-96 flex flex-col">
                 <p className="text-neutral-500 text-xs uppercase border-b border-neutral-800 pb-1 mb-2 font-bold truncate">
                   PREVIEW: {selectedFileName || '[ SELECT A FILE TO INSPECT ]'}

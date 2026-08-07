@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '../../supabaseClient'
 import Link from 'next/link'
-import ModInspectorModal from '../../components/ModInspectorModal' // Import the modal
+import ModInspectorModal from '../../components/ModInspectorModal'
 
 export default function ModDetailPage() {
   const params = useParams()
@@ -13,7 +13,7 @@ export default function ModDetailPage() {
   const [mod, setMod] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [isInspectorOpen, setIsInspectorOpen] = useState(false) // Inspector Modal State
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false)
 
   const supabase = createClient()
 
@@ -61,19 +61,16 @@ export default function ModDetailPage() {
 
   return (
     <main className="max-w-3xl mx-auto my-8 p-6 border-4 border-white bg-black text-white font-mono shadow-[8px_8px_0px_0px_#ffffff]">
-      {/* Navigation */}
       <div className="mb-6">
         <Link href="/mods" className="text-xs uppercase font-bold text-neutral-400 hover:text-white underline">
           &lt; BACK TO MODS LIST
         </Link>
       </div>
 
-      {/* Mod Title */}
       <h1 className="text-2xl font-black uppercase mb-2 border-b-2 border-white pb-2">
         {mod.title}
       </h1>
 
-      {/* Author & Timestamp */}
       <div className="flex flex-wrap items-center justify-between text-xs font-bold uppercase text-neutral-400 mb-6 gap-2 border-b border-neutral-800 pb-3">
         <span>
           CREATED BY: <span className="text-yellow-400">@{mod.author_name || 'UNKNOWN'}</span>
@@ -85,7 +82,6 @@ export default function ModDetailPage() {
         )}
       </div>
 
-      {/* Preview Image */}
       {mod.image_url ? (
         <div className="mb-6 border-2 border-white overflow-hidden bg-neutral-900">
           <img
@@ -100,7 +96,6 @@ export default function ModDetailPage() {
         </div>
       )}
 
-      {/* Description Section */}
       <div className="mb-6">
         <h2 className="text-xs font-bold uppercase text-yellow-400 mb-2">[ DESCRIPTION ]</h2>
         <div className="p-4 border-2 border-neutral-700 bg-neutral-900 text-sm whitespace-pre-wrap leading-relaxed">
@@ -108,7 +103,6 @@ export default function ModDetailPage() {
         </div>
       </div>
 
-      {/* Action Buttons: Download + Inspector */}
       {downloadLink ? (
         <div className="flex flex-col sm:flex-row gap-3">
           <a
@@ -120,7 +114,6 @@ export default function ModDetailPage() {
             DOWNLOAD MOD FILE 💾
           </a>
 
-          {/* "TAKE A PEEK? 🔍" BUTTON */}
           <button
             onClick={() => setIsInspectorOpen(true)}
             className="py-4 px-6 bg-yellow-400 text-black font-black uppercase text-sm border-2 border-white hover:bg-yellow-300 shadow-[4px_4px_0px_0px_#ffffff] transition-transform active:translate-x-1 active:translate-y-1 shrink-0"
@@ -134,7 +127,6 @@ export default function ModDetailPage() {
         </div>
       )}
 
-      {/* Inspector Modal */}
       <ModInspectorModal
         isOpen={isInspectorOpen}
         onClose={() => setIsInspectorOpen(false)}
