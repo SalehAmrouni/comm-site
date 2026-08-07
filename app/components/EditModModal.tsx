@@ -41,8 +41,6 @@ export default function EditModModal({
     setSaving(true)
     setError('')
 
-    // Exactly matching your Supabase 'mods' schema columns:
-    // title, description, image_url, download_url
     const updates = {
       title,
       description,
@@ -50,21 +48,30 @@ export default function EditModModal({
       download_url: downloadUrl,
     }
 
+    // Using .maybeSingle() to safely handle empty row responses
     const { data, error: updateError } = await supabase
       .from('mods')
       .update(updates)
       .eq('id', mod.id)
       .select()
-      .single()
+      .maybeSingle()
 
     if (updateError) {
       setError(updateError.message || 'FAILED TO UPDATE MOD.')
       setSaving(false)
-    } else {
-      setSaving(false)
-      onSuccess(data || { ...mod, ...updates })
-      onClose()
+      return
     }
+
+    // If no row came back, RLS blocked the update
+    if (!data) {
+      setError('PERMISSION DENIED: YOU ARE NOT REGISTERED AS THE OWNER OF THIS MOD IN THE DATABASE.')
+      setSaving(false)
+      return
+    }
+
+    setSaving(false)
+    onSuccess(data)
+    onClose()
   }
 
   return (
