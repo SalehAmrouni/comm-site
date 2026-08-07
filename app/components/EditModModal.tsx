@@ -9,7 +9,6 @@ interface ModData {
   description: string
   image_url?: string
   download_url?: string
-  file_url?: string
 }
 
 interface EditModModalProps {
@@ -28,7 +27,7 @@ export default function EditModModal({
   const [title, setTitle] = useState(mod.title || '')
   const [description, setDescription] = useState(mod.description || '')
   const [imageUrl, setImageUrl] = useState(mod.image_url || '')
-  const [downloadUrl, setDownloadUrl] = useState(mod.download_url || mod.file_url || '')
+  const [downloadUrl, setDownloadUrl] = useState(mod.download_url || '')
   
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -42,12 +41,13 @@ export default function EditModModal({
     setSaving(true)
     setError('')
 
+    // Exactly matching your Supabase 'mods' schema columns:
+    // title, description, image_url, download_url
     const updates = {
       title,
       description,
       image_url: imageUrl,
       download_url: downloadUrl,
-      file_url: downloadUrl, // updating both in case your DB uses either
     }
 
     const { data, error: updateError } = await supabase
@@ -77,6 +77,7 @@ export default function EditModModal({
             ✏️ EDIT MOD DETAILS
           </h2>
           <button
+            type="button"
             onClick={onClose}
             className="px-3 py-1 bg-white text-black font-bold text-xs uppercase hover:bg-neutral-300 border border-white"
           >
@@ -106,7 +107,7 @@ export default function EditModModal({
 
           <div>
             <label className="block text-xs font-bold uppercase text-neutral-400 mb-1">
-              DOWNLOAD / FILE URL
+              DOWNLOAD URL
             </label>
             <input
               type="url"
