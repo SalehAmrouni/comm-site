@@ -6,7 +6,6 @@ import JSZip from 'jszip'
 interface FileItem {
   name: string
   isDir: boolean
-  size?: number
   extension: string
   isSuspicious: boolean
 }
@@ -18,7 +17,6 @@ interface ModInspectorModalProps {
   modTitle: string
 }
 
-// Suspicious file extensions for security warning highlighting
 const SUSPICIOUS_EXTENSIONS = ['exe', 'bat', 'cmd', 'vbs', 'ps1', 'scr', 'jar', 'dll', 'sys', 'iso', 'msi']
 
 export default function ModInspectorModal({
@@ -47,15 +45,18 @@ export default function ModInspectorModal({
       setFileContent(null)
 
       try {
-        // Fetch the mod archive directly
-        const res = await fetch(fileUrl)
+        // Fetch via server-side API proxy to bypass CORS and resolve links
+        const proxyUrl = `/api/inspect-mod?url=${encodeURIComponent(fileUrl)}`
+        const res = await fetch(proxyUrl)
+
         if (!res.ok) {
-          throw new Error(`Failed to fetch mod file. HTTP Status: ${res.status}`)
+          const errData = await res.json().catch(() => null)
+          throw new Error(errData?.error || `Server responded with status ${res.status}`)
         }
 
-        const blob = await res.blob()
+        const arrayBuffer = await res.arrayBuffer()
         const zip = new JSZip()
-        const loadedZip = await zip.loadAsync(blob)
+        const loadedZip = await zip.loadAsync(arrayBuffer)
         setZipInstance(loadedZip)
 
         const fileList: FileItem[] = []
@@ -76,7 +77,7 @@ export default function ModInspectorModal({
       } catch (err: any) {
         console.error('Inspector error:', err)
         setError(
-          'UNABLE TO PEEK INSIDE THIS MOD. The link may be an external web page or non-zip file, or blocked by CORS.'
+          err.message || 'UNABLE TO PEEK INSIDE THIS MOD. Ensure the URL is a direct file link.'
         )
       } finally {
         setLoading(false)
@@ -86,7 +87,6 @@ export default function ModInspectorModal({
     inspectArchive()
   }, [isOpen, fileUrl])
 
-  // View contents of text/code files
   const handleSelectFile = async (file: FileItem) => {
     if (file.isDir || !zipInstance) return
 
@@ -101,7 +101,6 @@ export default function ModInspectorModal({
         return
       }
 
-      // Read text/code files
       const textExtensions = ['txt', 'json', 'lua', 'js', 'ts', 'py', 'xml', 'html', 'css', 'ini', 'cfg', 'md', 'yml', 'yaml']
       if (textExtensions.includes(file.extension)) {
         const text = await zipFile.async('string')
@@ -124,7 +123,7 @@ export default function ModInspectorModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 font-mono">
       <div className="relative w-full max-w-4xl max-h-[90vh] bg-black border-4 border-white p-6 flex flex-col shadow-[12px_12px_0px_0px_#ffffff] overflow-hidden text-white">
         
-        {/* Modal Header */}
+        {/* Header */}
         <div className="flex justify-between items-center border-b-2 border-white pb-3 mb-4">
           <div>
             <h2 className="text-lg font-black uppercase text-yellow-400">
@@ -145,7 +144,7 @@ export default function ModInspectorModal({
         {/* Loading / Error States */}
         {loading && (
           <div className="py-20 text-center animate-pulse">
-            <p className="text-sm font-bold uppercase">[ DOWNLOADING ARCHIVE & UNPACKING FILES... ]</p>
+            <p className="text-sm font-bold uppercase">[ FETCHING ARCHIVE & UNPACKING FILES... ]</p>
           </div>
         )}
 
@@ -155,11 +154,11 @@ export default function ModInspectorModal({
           </div>
         )}
 
-        {/* Unpacked File Browser */}
+        {/* File Browser */}
         {!loading && !error && (
           <div className="flex flex-col flex-1 overflow-hidden gap-4">
             
-            {/* Virus/Executable Warning Banner */}
+            {/* Risk Indicator */}
             {suspiciousCount > 0 ? (
               <div className="p-2 border-2 border-red-500 bg-red-950/40 text-red-400 text-xs font-bold uppercase flex items-center justify-between">
                 <span>⚠️ WARNING: FOUND {suspiciousCount} EXECUTABLE / POTENTIALLY RISKY FILE(S)</span>
@@ -167,14 +166,14 @@ export default function ModInspectorModal({
               </div>
             ) : (
               <div className="p-2 border-2 border-green-500 bg-green-950/40 text-green-400 text-xs font-bold uppercase">
-                ✅ NO DIRECT EXECUTABLE SCRIPTS (.EXE, .BAT) DETECTED IN TOP LEVEL
+                ✅ NO DIRECT EXECUTABLE SCRIPTS (.EXE, .BAT) DETECTED
               </div>
             )}
 
-            {/* Main File Explorer Grid */}
+            {/* Split View */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-h-0">
               
-              {/* File Tree List */}
+              {/* File List */}
               <div className="border-2 border-white bg-neutral-950 p-3 overflow-y-auto max-h-96 text-xs">
                 <p className="text-neutral-500 uppercase border-b border-neutral-800 pb-1 mb-2 font-bold">
                   ARCHIVE CONTENTS ({files.length} FILES)
@@ -212,7 +211,7 @@ export default function ModInspectorModal({
                 )}
               </div>
 
-              {/* Code/Content Preview Box */}
+              {/* Code Preview */}
               <div className="border-2 border-white bg-black p-3 overflow-y-auto max-h-96 flex flex-col">
                 <p className="text-neutral-500 text-xs uppercase border-b border-neutral-800 pb-1 mb-2 font-bold truncate">
                   PREVIEW: {selectedFileName || '[ SELECT A FILE TO INSPECT ]'}
